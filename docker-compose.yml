@@ -1,0 +1,325 @@
+services:
+  edge0:
+    build: .
+    environment:
+      - METRICS_SINK=/metrics/edgehydra/${SCENARIO:-manual}/e0.jsonl
+      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+    command:
+      [
+        "python",
+        "-m",
+        "edge.edge_server",
+        "--id",
+        "e0",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9000",
+        "--udp-port",
+        "9001",
+        "--cache-dir",
+        "/data/edge_cache",
+        "--peers",
+        "e1@edge1:9000:9001,e2@edge2:9000:9001,e3@edge3:9000:9001",
+      ]
+    volumes:
+      - ./experiments/data:/app/experiments/data
+      - ./metrics:/metrics
+      - edge0_data:/data
+
+  edge1:
+    build: .
+    environment:
+      - METRICS_SINK=/metrics/edgehydra/${SCENARIO:-manual}/e1.jsonl
+      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+    command:
+      [
+        "python",
+        "-m",
+        "edge.edge_server",
+        "--id",
+        "e1",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9000",
+        "--udp-port",
+        "9001",
+        "--cache-dir",
+        "/data/edge_cache",
+        "--peers",
+        "e0@edge0:9000:9001,e2@edge2:9000:9001,e3@edge3:9000:9001",
+      ]
+    volumes:
+      - ./experiments/data:/app/experiments/data
+      - ./metrics:/metrics
+      - edge1_data:/data
+
+  edge2:
+    build: .
+    environment:
+      - METRICS_SINK=/metrics/edgehydra/${SCENARIO:-manual}/e2.jsonl
+      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+    command:
+      [
+        "python",
+        "-m",
+        "edge.edge_server",
+        "--id",
+        "e2",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9000",
+        "--udp-port",
+        "9001",
+        "--cache-dir",
+        "/data/edge_cache",
+        "--peers",
+        "e0@edge0:9000:9001,e1@edge1:9000:9001,e3@edge3:9000:9001",
+      ]
+    volumes:
+      - ./experiments/data:/app/experiments/data
+      - ./metrics:/metrics
+      - edge2_data:/data
+
+  edge3:
+    build: .
+    environment:
+      - METRICS_SINK=/metrics/edgehydra/${SCENARIO:-manual}/e3.jsonl
+      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+    command:
+      [
+        "python",
+        "-m",
+        "edge.edge_server",
+        "--id",
+        "e3",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9000",
+        "--udp-port",
+        "9001",
+        "--cache-dir",
+        "/data/edge_cache",
+        "--peers",
+        "e0@edge0:9000:9001,e1@edge1:9000:9001,e2@edge2:9000:9001",
+      ]
+    volumes:
+      - ./experiments/data:/app/experiments/data
+      - ./metrics:/metrics
+      - edge3_data:/data
+
+  cloud:
+    build: .
+    depends_on:
+      - edge0
+      - edge1
+      - edge2
+      - edge3
+    environment:
+      - METRICS_SINK=/metrics/edgehydra/${SCENARIO:-manual}/cloud.jsonl
+      - FILE_PATH=${FILE_PATH:-experiments/data/raw/video_1MiB.bin}
+    command:
+      [
+        "python",
+        "-m",
+        "cloud.cloud_client",
+        "--file",
+        "${FILE_PATH:-experiments/data/raw/video_1MiB.bin}",
+        "--work-dir",
+        "experiments/data/cloud_work",
+        "--edges",
+        "e0@edge0:9000,e1@edge1:9000,e2@edge2:9000,e3@edge3:9000",
+        "--k",
+        "3",
+        "--m",
+        "4",
+        "--codec",
+        "zfec",
+      ]
+    volumes:
+      - ./experiments/data:/app/experiments/data
+      - ./metrics:/metrics
+
+  edgedis0:
+    build: .
+    environment:
+      - METRICS_SINK=/metrics/edgedis/${SCENARIO:-manual}/e0.jsonl
+      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+    command:
+      [
+        "python",
+        "-m",
+        "edge.edgedis_node",
+        "--id",
+        "e0",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9100",
+        "--cache-dir",
+        "/data/edge_cache_edgedis",
+        "--coordinator-id",
+        "e0",
+        "--peers",
+        "e1@edgedis1:9100,e2@edgedis2:9100,e3@edgedis3:9100",
+      ]
+    volumes:
+      - ./experiments/data:/app/experiments/data
+      - ./metrics:/metrics
+      - edgedis0_data:/data
+
+  edgedis1:
+    build: .
+    environment:
+      - METRICS_SINK=/metrics/edgedis/${SCENARIO:-manual}/e1.jsonl
+      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+    command:
+      [
+        "python",
+        "-m",
+        "edge.edgedis_node",
+        "--id",
+        "e1",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9100",
+        "--cache-dir",
+        "/data/edge_cache_edgedis",
+        "--coordinator-id",
+        "e0",
+        "--peers",
+        "e0@edgedis0:9100,e2@edgedis2:9100,e3@edgedis3:9100",
+      ]
+    volumes:
+      - ./experiments/data:/app/experiments/data
+      - ./metrics:/metrics
+      - edgedis1_data:/data
+
+  edgedis2:
+    build: .
+    environment:
+      - METRICS_SINK=/metrics/edgedis/${SCENARIO:-manual}/e2.jsonl
+      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+    command:
+      [
+        "python",
+        "-m",
+        "edge.edgedis_node",
+        "--id",
+        "e2",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9100",
+        "--cache-dir",
+        "/data/edge_cache_edgedis",
+        "--coordinator-id",
+        "e0",
+        "--peers",
+        "e0@edgedis0:9100,e1@edgedis1:9100,e3@edgedis3:9100",
+      ]
+    volumes:
+      - ./experiments/data:/app/experiments/data
+      - ./metrics:/metrics
+      - edgedis2_data:/data
+
+  edgedis3:
+    build: .
+    environment:
+      - METRICS_SINK=/metrics/edgedis/${SCENARIO:-manual}/e3.jsonl
+      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+    command:
+      [
+        "python",
+        "-m",
+        "edge.edgedis_node",
+        "--id",
+        "e3",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9100",
+        "--cache-dir",
+        "/data/edge_cache_edgedis",
+        "--coordinator-id",
+        "e0",
+        "--peers",
+        "e0@edgedis0:9100,e1@edgedis1:9100,e2@edgedis2:9100",
+      ]
+    volumes:
+      - ./experiments/data:/app/experiments/data
+      - ./metrics:/metrics
+      - edgedis3_data:/data
+
+  edgedis_cloud:
+    build: .
+    depends_on:
+      - edgedis0
+      - edgedis1
+      - edgedis2
+      - edgedis3
+    environment:
+      - METRICS_SINK=/metrics/edgedis/${SCENARIO:-manual}/cloud.jsonl
+      - FILE_PATH=${FILE_PATH:-experiments/data/raw/video_1MiB.bin}
+    command:
+      [
+        "python",
+        "-m",
+        "cloud.edgedis_client",
+        "--file",
+        "${FILE_PATH:-experiments/data/raw/video_1MiB.bin}",
+        "--work-dir",
+        "experiments/data/cloud_work_edgedis",
+        "--edges",
+        "e0@edgedis0:9100,e1@edgedis1:9100,e2@edgedis2:9100,e3@edgedis3:9100",
+      ]
+    volumes:
+      - ./experiments/data:/app/experiments/data
+      - ./metrics:/metrics
+
+volumes:
+  edge0_data:
+  edge1_data:
+  edge2_data:
+  edge3_data:
+  edgedis0_data:
+  edgedis1_data:
+  edgedis2_data:
+  edgedis3_data:
+

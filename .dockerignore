@@ -1,0 +1,16 @@
+.venv
+__pycache__
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+experiments/data/raw
+experiments/data/shards
+experiments/data/edge_cache*
+experiments/data/cloud_work*
+experiments/data/recovered*
+/tmp
+

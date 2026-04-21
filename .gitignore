@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Generated experiment artifacts
+metrics/
+results/
+experiments/data/cloud_work/
+experiments/data/cloud_work_edgedis/
+experiments/data/edge_cache/
+experiments/data/recovered/
+experiments/data/recovered_edgedis/
+experiments/data/shards/
+experiments/data/raw/*.bin
+
