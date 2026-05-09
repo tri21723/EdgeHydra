@@ -2,6 +2,8 @@ import argparse
 import asyncio
 import json
 import math
+import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -38,6 +40,36 @@ def _slice_blocks(data: bytes, n: int) -> List[bytes]:
     block_bytes = int(math.ceil(len(data) / n)) if data else 0
     padded = data + (b"\x00" * (block_bytes * n - len(data)))
     return [padded[i * block_bytes : (i + 1) * block_bytes] for i in range(n)]
+
+
+def _append_protocol_event(event: str, **extra: object) -> None:
+    sink = os.getenv("METRICS_SINK", "").strip()
+    if not sink:
+        return
+    Path(sink).parent.mkdir(parents=True, exist_ok=True)
+    evt = {
+        "event": event,
+        "event_kind": "protocol",
+        "ts_ms": int(time.time() * 1000),
+    }
+    evt.update(extra)
+    with open(sink, "a", encoding="utf-8") as f:
+        f.write(json.dumps(evt) + "\n")
+
+
+def _append_infra_event(event: str, **extra: object) -> None:
+    sink = os.getenv("METRICS_SINK", "").strip()
+    if not sink:
+        return
+    Path(sink).parent.mkdir(parents=True, exist_ok=True)
+    evt = {
+        "event": event,
+        "event_kind": "infrastructure",
+        "ts_ms": int(time.time() * 1000),
+    }
+    evt.update(extra)
+    with open(sink, "a", encoding="utf-8") as f:
+        f.write(json.dumps(evt) + "\n")
 
 
 async def distribute_edgedis(
@@ -89,7 +121,9 @@ async def distribute_edgedis(
             payload=blocks[i],
         )
         resp = await request_response(edge.host, edge.port, req, timeout_s=timeout_s)
-        return i, resp.header.get("type") == "mesbdc_edgedis"
+        ok = resp.header.get("type") == "mesbdc_edgedis"
+        _append_protocol_event("block_sent", file_id=file_id, block_id=i, edge_id=edge.edge_id, ok=ok)
+        return i, ok
 
     results = await asyncio.gather(*[_send_one(i, e) for i, e in enumerate(edges)], return_exceptions=True)
     for r in results:
@@ -112,7 +146,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     edges = _parse_edges(args.edges)
-    asyncio.run(distribute_edgedis(input_file=args.file, work_dir=args.work_dir, edges=edges, timeout_s=args.timeout_s))
+    _append_infra_event("container_start", component="edgedis_cloud")
+    try:
+        _append_infra_event("container_ready", component="edgedis_cloud")
+        asyncio.run(distribute_edgedis(input_file=args.file, work_dir=args.work_dir, edges=edges, timeout_s=args.timeout_s))
+    finally:
+        _append_infra_event("container_exit", component="edgedis_cloud")
     return 0
 
 

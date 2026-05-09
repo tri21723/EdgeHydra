@@ -3,7 +3,7 @@ import csv
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from common.metrics import Metrics
 
@@ -35,25 +35,56 @@ def _sum_events(paths: Iterable[Path]) -> Dict[str, int]:
     return out
 
 
-def _event_time_range_ms(paths: Iterable[Path]) -> Optional[Dict[str, int]]:
-    mn: Optional[int] = None
-    mx: Optional[int] = None
+def _event_label(evt: Dict[str, Any]) -> str:
+    typ = str(evt.get("type", "")).strip()
+    direction = str(evt.get("direction", "")).strip()
+    if typ:
+        return typ
+    if direction:
+        return direction
+    return "unknown"
+
+
+def _collect_timed_events(paths: Iterable[Path]) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
     for p in paths:
         if not p.exists():
             continue
-        for line in p.read_text().splitlines():
+        for i, line in enumerate(p.read_text().splitlines(), start=1):
             try:
                 evt = json.loads(line)
                 ts = int(evt.get("ts_ms", 0))
                 if ts <= 0:
                     continue
-                mn = ts if mn is None else min(mn, ts)
-                mx = ts if mx is None else max(mx, ts)
+                out.append(
+                    {
+                        "ts_ms": ts,
+                        "file": p.name,
+                        "line": i,
+                        "label": _event_label(evt),
+                    }
+                )
             except Exception:
                 continue
-    if mn is None or mx is None:
+    out.sort(key=lambda x: int(x["ts_ms"]))
+    return out
+
+
+def _time_range_from_events(events: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not events:
         return None
-    return {"min": mn, "max": mx}
+    start = events[0]
+    end = events[-1]
+    return {
+        "min": int(start["ts_ms"]),
+        "max": int(end["ts_ms"]),
+        "min_source_file": str(start["file"]),
+        "min_source_line": int(start["line"]),
+        "min_source_label": str(start["label"]),
+        "max_source_file": str(end["file"]),
+        "max_source_line": int(end["line"]),
+        "max_source_label": str(end["label"]),
+    }
 
 
 def _write_csv(out_path: str, rows: List[Metrics]) -> None:
@@ -110,7 +141,11 @@ def main() -> int:
     # Sum everything in the directory (cloud + all edges).
     jsonls = sorted(jsonl_dir.glob("*.jsonl"))
     sums = _sum_events(jsonls)
-    tr = _event_time_range_ms(jsonls)
+    all_events = _collect_timed_events(jsonls)
+    tr_dbg = _time_range_from_events(all_events)
+    tr = None
+    if tr_dbg is not None:
+        tr = {"min": int(tr_dbg["min"]), "max": int(tr_dbg["max"])}
 
     fp = Path(spec.file_path)
     metrics = Metrics(
@@ -126,6 +161,30 @@ def main() -> int:
     if tr is not None:
         metrics.started_at_ms = int(tr["min"])
         metrics.ended_at_ms = int(tr["max"])
+    # Debug logging: print event-file counts and exact start/end event sources.
+    print(
+        f"[aggregate_jsonl_metrics] input scenario={spec.scenario} method={spec.method} "
+        f"jsonl_files={len(jsonls)}"
+    )
+    for p in jsonls:
+        line_count = len(p.read_text().splitlines()) if p.exists() else 0
+        print(f"[aggregate_jsonl_metrics] file path={p} lines={line_count}")
+    print(
+        f"[aggregate_jsonl_metrics] events total_events={len(all_events)} "
+        f"window_events={len(all_events)}"
+    )
+    if tr_dbg is not None:
+        dist_s = (int(tr_dbg["max"]) - int(tr_dbg["min"])) / 1000.0
+        print(
+            "[aggregate_jsonl_metrics] timing"
+            f" t_start_ms={int(tr_dbg['min'])}"
+            f" t_end_ms={int(tr_dbg['max'])}"
+            f" start_from={tr_dbg['min_source_file']}:{tr_dbg['min_source_line']}:{tr_dbg['min_source_label']}"
+            f" end_from={tr_dbg['max_source_file']}:{tr_dbg['max_source_line']}:{tr_dbg['max_source_label']}"
+            f" distribution_time_s={dist_s:.6f}"
+        )
+    else:
+        print("[aggregate_jsonl_metrics] timing no valid ts_ms found")
     metrics.cloud_to_edge_bytes = sums["cloud_to_edge"]
     metrics.edge_to_edge_bytes = sums["edge_to_edge"]
 

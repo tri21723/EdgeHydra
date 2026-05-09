@@ -111,7 +111,13 @@ def _append_event(direction: str, payload_bytes: int) -> None:
     if sink is None:
         return
     Path(sink).parent.mkdir(parents=True, exist_ok=True)
-    evt = {"direction": direction, "bytes": int(payload_bytes), "ts_ms": int(time.time() * 1000)}
+    evt = {
+        "direction": direction,
+        "bytes": int(payload_bytes),
+        "ts_ms": int(time.time() * 1000),
+        "event": "payload_transfer",
+        "event_kind": "protocol",
+    }
     with open(sink, "a", encoding="utf-8") as f:
         f.write(json.dumps(evt) + "\n")
 

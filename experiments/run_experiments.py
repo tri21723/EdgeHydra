@@ -3,6 +3,7 @@ import asyncio
 import contextlib
 import csv
 from dataclasses import dataclass
+import sys
 from pathlib import Path
 import json
 import time
@@ -69,6 +70,7 @@ async def _run_edgehydra_once(
     # Start edges as subprocesses to allow per-node env config.
     import os
     import subprocess
+    py = sys.executable
 
     procs: List[subprocess.Popen] = []
     tcp_eps, udp_eps = _edgehydra_ports(n, ports)
@@ -112,7 +114,7 @@ async def _run_edgehydra_once(
         peers_arg = ",".join(peer_parts)
 
         cmd = [
-            "python",
+            py,
             "-m",
             "edge.edge_server",
             "--id",
@@ -201,6 +203,7 @@ async def _run_edgedis_once(
 ) -> Metrics:
     import os
     import subprocess
+    py = sys.executable
 
     procs: List[subprocess.Popen] = []
     cache_root = "/tmp/edge_cache_ed"
@@ -242,7 +245,7 @@ async def _run_edgedis_once(
         peers_arg = ",".join(peer_parts)
 
         cmd = [
-            "python",
+            py,
             "-m",
             "edge.edgedis_node",
             "--id",

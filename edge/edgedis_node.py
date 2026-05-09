@@ -1,7 +1,9 @@
 import argparse
 import asyncio
+import contextlib
 import json
 import math
+import os
 import random
 import time
 from pathlib import Path
@@ -14,6 +16,21 @@ from common.transport import Frame, read_frame, request_response, write_frame
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def _append_event(event: str, *, event_kind: str = "protocol", **extra: object) -> None:
+    sink = os.getenv("METRICS_SINK", "").strip()
+    if not sink:
+        return
+    Path(sink).parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "event": event,
+        "event_kind": event_kind,
+        "ts_ms": _now_ms(),
+    }
+    payload.update(extra)
+    with open(sink, "a", encoding="utf-8") as f:
+        f.write(json.dumps(payload) + "\n")
 
 
 class EdgeDisNode:
@@ -34,11 +51,33 @@ class EdgeDisNode:
         self.coordinator_poll_ms = coordinator_poll_ms
 
         self._states: Dict[str, Dict[str, Any]] = {}  # file_id -> state
+        # Stage 2 dedup: file_id -> block_id -> peer_ids already forwarded.
+        self._stage2_sent_ledger: Dict[str, Dict[int, Set[str]]] = {}
+        # Track peers that already reconstructed full file (file_id -> peer_ids).
+        self._reconstructed_peers: Dict[str, Set[str]] = {}
+        # Stage 3 dedup: file_id -> block_id -> target peer_ids already supplemented.
+        self._supplement_sent_ledger: Dict[str, Dict[int, Set[str]]] = {}
+        self._dedup_stats: Dict[str, int] = {
+            "stage2_skipped_already_sent": 0,
+            "stage2_skipped_reconstructed_peer": 0,
+            "stage3_skipped_duplicate_supply": 0,
+            "stage3_supplies_sent": 0,
+        }
 
         # Fault injection for edge-to-edge traffic
         self.fault = FaultConfig.from_env("E2E_FAULT")
         self.crashed = False
         # crash_after_s is scheduled in run_node() when an event loop is running.
+        self._state_export_path = self._build_state_export_path()
+
+    def _build_state_export_path(self) -> Optional[Path]:
+        sink = os.getenv("METRICS_SINK", "").strip()
+        if not sink:
+            return None
+        p = Path(sink)
+        out = p.parent / f"node_state_{self.server_id}.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        return out
 
     def _crash(self) -> None:
         self.crashed = True
@@ -100,14 +139,29 @@ class EdgeDisNode:
         have = set(int(x) for x in received)
         return [i for i in range(n) if i not in have]
 
+    def _ledger_has(self, ledger: Dict[str, Dict[int, Set[str]]], file_id: str, block_id: int, peer_id: str) -> bool:
+        return peer_id in ledger.get(file_id, {}).get(int(block_id), set())
+
+    def _ledger_mark(self, ledger: Dict[str, Dict[int, Set[str]]], file_id: str, block_id: int, peer_id: str) -> None:
+        ledger.setdefault(file_id, {}).setdefault(int(block_id), set()).add(peer_id)
+
     async def _forward_block(self, *, file_id: str, filename: str, block_id: int, meta: Dict[str, Any], payload: bytes) -> None:
         # Forward this block to all peers (best effort).
         async def _one(peer_id: str, host: str, port: int) -> None:
+            # Fix 1: Stage 2 forwarding dedup.
+            if self._ledger_has(self._stage2_sent_ledger, file_id, block_id, peer_id):
+                self._dedup_stats["stage2_skipped_already_sent"] += 1
+                return
+            # Fix 2: skip peers that already announced full reconstruction.
+            if peer_id in self._reconstructed_peers.get(file_id, set()):
+                self._dedup_stats["stage2_skipped_reconstructed_peer"] += 1
+                return
             if should_drop(self.fault):
                 return
             await maybe_delay(self.fault)
             record_edge_to_edge(len(payload))
             try:
+                self._ledger_mark(self._stage2_sent_ledger, file_id, block_id, peer_id)
                 await request_response(
                     host,
                     port,
@@ -159,6 +213,28 @@ class EdgeDisNode:
 
         st["reconstructed"] = True
         self._save_state(file_id)
+        _append_event("reconstruction_done", file_id=file_id, server_id=self.server_id)
+        # Mark self as reconstructed and broadcast to peers so they can stop forwarding.
+        self._reconstructed_peers.setdefault(file_id, set()).add(self.server_id)
+        asyncio.create_task(self._broadcast_reconstructed(file_id=file_id))
+
+    async def _broadcast_reconstructed(self, *, file_id: str) -> None:
+        for peer_id, host, port in self.peers:
+            try:
+                await request_response(
+                    host,
+                    port,
+                    Frame(
+                        header={
+                            "type": "reconstructed_bcast_edgedis",
+                            "server_id": self.server_id,
+                            "file_id": file_id,
+                        }
+                    ),
+                    timeout_s=2.0,
+                )
+            except Exception:
+                continue
 
     async def handle_conn(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
@@ -180,6 +256,7 @@ class EdgeDisNode:
 
                 self._write_block(file_id, filename, block_id, frame.payload)
                 self._mark_received(file_id, block_id)
+                _append_event("block_received", file_id=file_id, block_id=block_id, server_id=self.server_id, source="cloud")
                 asyncio.create_task(self._forward_block(file_id=file_id, filename=filename, block_id=block_id, meta=meta, payload=frame.payload))
 
                 await write_frame(
@@ -202,6 +279,7 @@ class EdgeDisNode:
 
                 self._write_block(file_id, filename, block_id, frame.payload)
                 self._mark_received(file_id, block_id)
+                _append_event("block_received", file_id=file_id, block_id=block_id, server_id=self.server_id, source="edge")
                 self._try_reconstruct(file_id)
 
                 await write_frame(writer, Frame(header={"type": "mesbrc_edgedis", "server_id": self.server_id, "file_id": file_id, "block_id": block_id}))
@@ -219,6 +297,23 @@ class EdgeDisNode:
                             "file_id": file_id,
                             "received_blocks": st.get("received_blocks", []),
                             "meta": st.get("meta"),
+                        }
+                    ),
+                )
+                return
+
+            if t == "reconstructed_bcast_edgedis":
+                file_id = str(frame.header["file_id"])
+                peer_id = str(frame.header.get("server_id", "unknown"))
+                self._reconstructed_peers.setdefault(file_id, set()).add(peer_id)
+                await write_frame(
+                    writer,
+                    Frame(
+                        header={
+                            "type": "reconstructed_bcast_ack_edgedis",
+                            "server_id": self.server_id,
+                            "file_id": file_id,
+                            "stopped_sending_to": peer_id,
                         }
                     ),
                 )
@@ -315,6 +410,10 @@ class EdgeDisNode:
                         # Supply a few missing blocks per tick to avoid bursts
                         random.shuffle(missing)
                         for bid in missing[:2]:
+                            # Fix 3: supplement dedup for same (block_id, target peer).
+                            if self._ledger_has(self._supplement_sent_ledger, file_id, bid, sid):
+                                self._dedup_stats["stage3_skipped_duplicate_supply"] += 1
+                                continue
                             holder_id = holders.get(bid)
                             if holder_id is None:
                                 continue
@@ -353,6 +452,15 @@ class EdgeDisNode:
                             try:
                                 if payload is not None:
                                     record_edge_to_edge(len(payload))
+                                self._ledger_mark(self._supplement_sent_ledger, file_id, bid, sid)
+                                self._dedup_stats["stage3_supplies_sent"] += 1
+                                _append_event(
+                                    "supplement_sent",
+                                    file_id=file_id,
+                                    block_id=bid,
+                                    from_server=self.server_id,
+                                    to_server=sid,
+                                )
                                 await request_response(
                                     host,
                                     port,
@@ -373,18 +481,60 @@ class EdgeDisNode:
             finally:
                 await asyncio.sleep(self.coordinator_poll_ms / 1000.0)
 
+    async def export_state_loop(self, interval_s: float = 0.4) -> None:
+        if self._state_export_path is None:
+            return
+        while True:
+            try:
+                latest: Optional[Dict[str, Any]] = None
+                for st in self._states.values():
+                    if latest is None or int(st.get("updated_at_ms", 0)) > int(latest.get("updated_at_ms", 0)):
+                        latest = st
+                payload: Dict[str, Any] = {
+                    "server_id": self.server_id,
+                    "file_id": None,
+                    "received_blocks": [],
+                    "received_count": 0,
+                    "reconstructed": False,
+                    "dedup_stats": dict(self._dedup_stats),
+                    "updated_at_ms": _now_ms(),
+                }
+                if latest is not None:
+                    rb = [int(x) for x in latest.get("received_blocks", [])]
+                    payload.update(
+                        {
+                            "file_id": str(latest.get("file_id", "")),
+                            "received_blocks": rb,
+                            "received_count": len(rb),
+                            "reconstructed": bool(latest.get("reconstructed", False)),
+                            "dedup_stats": dict(self._dedup_stats),
+                            "updated_at_ms": int(latest.get("updated_at_ms", _now_ms())),
+                        }
+                    )
+                tmp = self._state_export_path.with_suffix(".tmp")
+                tmp.write_text(json.dumps(payload, ensure_ascii=False))
+                tmp.replace(self._state_export_path)
+            except Exception:
+                pass
+            await asyncio.sleep(interval_s)
+
 
 async def run_node(host: str, port: int, *, node: EdgeDisNode) -> None:
+    _append_event("container_start", event_kind="infrastructure", component=node.server_id)
     loop = asyncio.get_running_loop()
     if node.fault.enabled and node.fault.crash_after_s and node.fault.crash_after_s > 0:
         loop.call_later(node.fault.crash_after_s, node._crash)
     srv = await asyncio.start_server(node.handle_conn, host, port)
+    _append_event("container_ready", event_kind="infrastructure", component=node.server_id)
     coord_task = asyncio.create_task(node.coordinator_loop())
+    state_task = asyncio.create_task(node.export_state_loop(interval_s=0.4))
     try:
         async with srv:
             await srv.serve_forever()
     finally:
         coord_task.cancel()
+        state_task.cancel()
+        _append_event("container_exit", event_kind="infrastructure", component=node.server_id)
 
 
 def main() -> int:
@@ -422,7 +572,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    import contextlib
-
     raise SystemExit(main())
 

@@ -13,4 +13,6 @@ experiments/data/edge_cache*
 experiments/data/cloud_work*
 experiments/data/recovered*
 /tmp
+metrics
+results/compose
 

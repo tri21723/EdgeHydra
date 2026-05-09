@@ -77,6 +77,32 @@ class NetworkStateMonitor:
 
         return sorted(peer_ids, key=score)
 
+    def snapshot(self) -> Dict[str, object]:
+        peers: List[Dict[str, object]] = []
+        ids = [pid for (pid, _h, _p) in self.peers]
+        ranked = self.rank_peers(ids)
+        for pid in ids:
+            st = self._stats.get(pid) or LinkStats(peer_id=pid)
+            peers.append(
+                {
+                    "peer_id": pid,
+                    "ewma_rtt_ms": float(st.ewma_rtt_ms),
+                    "ok_rate": float(st.ok_rate),
+                    "sent": int(st.sent),
+                    "ok": int(st.ok),
+                    "last_ok_ms": int(st.last_ok_ms),
+                }
+            )
+        return {
+            "self_id": self.self_id,
+            "probe_interval_s": float(self.probe_interval_s),
+            "probe_timeout_s": float(self.probe_timeout_s),
+            "ewma_alpha": float(self.ewma_alpha),
+            "ranked_peers": ranked,
+            "peers": peers,
+            "ts_ms": _now_ms(),
+        }
+
     async def _probe_one(self, peer_id: str, host: str, port: int) -> None:
         st = self.stats(peer_id)
         st.sent += 1

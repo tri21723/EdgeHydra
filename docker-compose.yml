@@ -3,11 +3,11 @@ services:
     build: .
     environment:
       - METRICS_SINK=/metrics/edgehydra/${SCENARIO:-manual}/e0.jsonl
-      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
-      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
-      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
-      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
-      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+      - E2E_FAULT_ENABLED=${EDGE0_E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${EDGE0_E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${EDGE0_E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${EDGE0_E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${EDGE0_E2E_FAULT_CRASH_AFTER_S:-1}
     command:
       [
         "python",
@@ -35,11 +35,11 @@ services:
     build: .
     environment:
       - METRICS_SINK=/metrics/edgehydra/${SCENARIO:-manual}/e1.jsonl
-      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
-      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
-      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
-      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
-      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+      - E2E_FAULT_ENABLED=${EDGE1_E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${EDGE1_E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${EDGE1_E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${EDGE1_E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${EDGE1_E2E_FAULT_CRASH_AFTER_S:-1}
     command:
       [
         "python",
@@ -67,11 +67,11 @@ services:
     build: .
     environment:
       - METRICS_SINK=/metrics/edgehydra/${SCENARIO:-manual}/e2.jsonl
-      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
-      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
-      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
-      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
-      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+      - E2E_FAULT_ENABLED=${EDGE2_E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${EDGE2_E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${EDGE2_E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${EDGE2_E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${EDGE2_E2E_FAULT_CRASH_AFTER_S:-1}
     command:
       [
         "python",
@@ -99,11 +99,11 @@ services:
     build: .
     environment:
       - METRICS_SINK=/metrics/edgehydra/${SCENARIO:-manual}/e3.jsonl
-      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
-      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
-      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
-      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
-      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+      - E2E_FAULT_ENABLED=${EDGE3_E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${EDGE3_E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${EDGE3_E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${EDGE3_E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${EDGE3_E2E_FAULT_CRASH_AFTER_S:-1}
     command:
       [
         "python",
@@ -136,7 +136,7 @@ services:
       - edge3
     environment:
       - METRICS_SINK=/metrics/edgehydra/${SCENARIO:-manual}/cloud.jsonl
-      - FILE_PATH=${FILE_PATH:-experiments/data/raw/video_1MiB.bin}
+      - FILE_PATH=${FILE_PATH:-/inputs/video_1MiB.bin}
     command:
       [
         "python",
@@ -145,7 +145,7 @@ services:
         "--file",
         "${FILE_PATH:-experiments/data/raw/video_1MiB.bin}",
         "--work-dir",
-        "experiments/data/cloud_work",
+        "/tmp/cloud_work",
         "--edges",
         "e0@edge0:9000,e1@edge1:9000,e2@edge2:9000,e3@edge3:9000",
         "--k",
@@ -158,16 +158,17 @@ services:
     volumes:
       - ./experiments/data:/app/experiments/data
       - ./metrics:/metrics
+      - ${HOST_INPUT_DIR:-/tmp/edgehydra_inputs}:/inputs:ro
 
   edgedis0:
     build: .
     environment:
       - METRICS_SINK=/metrics/edgedis/${SCENARIO:-manual}/e0.jsonl
-      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
-      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
-      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
-      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
-      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+      - E2E_FAULT_ENABLED=${EDGE0_E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${EDGE0_E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${EDGE0_E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${EDGE0_E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${EDGE0_E2E_FAULT_CRASH_AFTER_S:-1}
     command:
       [
         "python",
@@ -195,11 +196,11 @@ services:
     build: .
     environment:
       - METRICS_SINK=/metrics/edgedis/${SCENARIO:-manual}/e1.jsonl
-      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
-      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
-      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
-      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
-      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+      - E2E_FAULT_ENABLED=${EDGE1_E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${EDGE1_E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${EDGE1_E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${EDGE1_E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${EDGE1_E2E_FAULT_CRASH_AFTER_S:-1}
     command:
       [
         "python",
@@ -227,11 +228,11 @@ services:
     build: .
     environment:
       - METRICS_SINK=/metrics/edgedis/${SCENARIO:-manual}/e2.jsonl
-      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
-      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
-      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
-      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
-      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+      - E2E_FAULT_ENABLED=${EDGE2_E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${EDGE2_E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${EDGE2_E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${EDGE2_E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${EDGE2_E2E_FAULT_CRASH_AFTER_S:-1}
     command:
       [
         "python",
@@ -259,11 +260,11 @@ services:
     build: .
     environment:
       - METRICS_SINK=/metrics/edgedis/${SCENARIO:-manual}/e3.jsonl
-      - E2E_FAULT_ENABLED=${E2E_FAULT_ENABLED:-0}
-      - E2E_FAULT_DELAY_MIN_MS=${E2E_FAULT_DELAY_MIN_MS:-0}
-      - E2E_FAULT_DELAY_MAX_MS=${E2E_FAULT_DELAY_MAX_MS:-0}
-      - E2E_FAULT_DROP_PROB=${E2E_FAULT_DROP_PROB:-0}
-      - E2E_FAULT_CRASH_AFTER_S=${E2E_FAULT_CRASH_AFTER_S:-1}
+      - E2E_FAULT_ENABLED=${EDGE3_E2E_FAULT_ENABLED:-0}
+      - E2E_FAULT_DELAY_MIN_MS=${EDGE3_E2E_FAULT_DELAY_MIN_MS:-0}
+      - E2E_FAULT_DELAY_MAX_MS=${EDGE3_E2E_FAULT_DELAY_MAX_MS:-0}
+      - E2E_FAULT_DROP_PROB=${EDGE3_E2E_FAULT_DROP_PROB:-0}
+      - E2E_FAULT_CRASH_AFTER_S=${EDGE3_E2E_FAULT_CRASH_AFTER_S:-1}
     command:
       [
         "python",
@@ -296,7 +297,7 @@ services:
       - edgedis3
     environment:
       - METRICS_SINK=/metrics/edgedis/${SCENARIO:-manual}/cloud.jsonl
-      - FILE_PATH=${FILE_PATH:-experiments/data/raw/video_1MiB.bin}
+      - FILE_PATH=${FILE_PATH:-/inputs/video_1MiB.bin}
     command:
       [
         "python",
@@ -305,13 +306,14 @@ services:
         "--file",
         "${FILE_PATH:-experiments/data/raw/video_1MiB.bin}",
         "--work-dir",
-        "experiments/data/cloud_work_edgedis",
+        "/tmp/cloud_work_edgedis",
         "--edges",
         "e0@edgedis0:9100,e1@edgedis1:9100,e2@edgedis2:9100,e3@edgedis3:9100",
       ]
     volumes:
       - ./experiments/data:/app/experiments/data
       - ./metrics:/metrics
+      - ${HOST_INPUT_DIR:-/tmp/edgehydra_inputs}:/inputs:ro
 
 volumes:
   edge0_data:

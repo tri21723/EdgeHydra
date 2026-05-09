@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EdgeHydra Live Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #fafafa; color: #222; font-size: 15px; }
+    h1 { margin-bottom: 6px; }
+    .muted { color: #666; margin-bottom: 14px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    button, select, input { padding: 8px 12px; border: 1px solid #bbb; border-radius: 8px; background: #fff; }
+    button { cursor: pointer; }
+    button:hover { background: #f0f0f0; }
+    #status, #logs { white-space: pre-wrap; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
+    #status { min-height: 42px; margin-bottom: 12px; }
+    #logs { min-height: 180px; max-height: 340px; overflow: auto; font-family: monospace; font-size: 12px; }
+    .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    .kpi { display: flex; gap: 10px; flex-wrap: wrap; }
+    .kpi > div { background: #f6f7fb; padding: 10px; border-radius: 8px; min-width: 160px; }
+    .label { font-size: 12px; color: #666; }
+    .value { font-size: 18px; font-weight: bold; margin-top: 2px; }
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 6px; }
+    .stage-pill { display: inline-block; margin-top: 8px; padding: 6px 10px; border-radius: 999px; background: #eef5ff; border: 1px solid #c8dcff; font-size: 13px; }
+    .flow-line {
+      opacity: 0.3;
+      transition: opacity 0.25s ease, filter 0.25s ease, stroke-width 0.25s ease;
+    }
+    .flow-line.active {
+      opacity: 1;
+      filter: drop-shadow(0 0 4px rgba(47,126,216,0.55));
+      stroke-width: 3.2;
+    }
+    .flow-line.active-orange {
+      opacity: 1;
+      filter: drop-shadow(0 0 4px rgba(216,86,47,0.55));
+      stroke-width: 3.2;
+    }
+    .node-box {
+      transition: transform 0.25s ease, filter 0.25s ease;
+    }
+    .node-box.active {
+      transform: translateY(-2px);
+      filter: drop-shadow(0 2px 6px rgba(47,126,216,0.30));
+    }
+    .nodes-grid { display: grid; grid-template-columns: repeat(2, minmax(240px, 1fr)); gap: 10px; margin-top: 10px; }
+    .node-card { border: 1px solid #e3e3e3; border-radius: 8px; padding: 8px; background: #fcfcff; }
+    .node-title { font-weight: bold; margin-bottom: 6px; }
+    .progress-wrap { width: 100%; height: 10px; border-radius: 999px; background: #eceef5; overflow: hidden; }
+    .progress-fill { height: 100%; width: 0%; background: #2f7ed8; transition: width 0.35s ease; }
+    .node-meta { margin-top: 6px; font-size: 12px; color: #555; display: flex; justify-content: space-between; }
+    .node-extra { margin-top: 4px; font-size: 11px; color: #777; font-family: monospace; }
+    .node-state.ok { color: #0f7a2f; font-weight: bold; }
+    .node-state.fail { color: #b42318; font-weight: bold; }
+    .node-state.warn { color: #b26a00; font-weight: bold; }
+    .topology-wrap { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; align-items: start; }
+    .big-kpi { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 8px; }
+    .big-kpi .item { border: 1px solid #e8e8e8; border-radius: 8px; padding: 10px; background: #fff; }
+    .big-kpi .v { font-size: 24px; font-weight: bold; line-height: 1.2; }
+    .big-kpi .l { font-size: 12px; color: #666; }
+    .chip { display: inline-block; padding: 4px 8px; border-radius: 999px; border: 1px solid #ddd; background: #fff; font-size: 12px; }
+    .chip.ok { border-color: #8ad4a0; background: #ecfff2; color: #146c2e; }
+    .chip.fail { border-color: #f3a4a4; background: #fff1f1; color: #9f1f1f; }
+    .chip.warn { border-color: #f0d490; background: #fff9ea; color: #8a6400; }
+    .timeline { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .timeline .step { padding: 6px 10px; border-radius: 8px; border: 1px solid #ddd; background: #fff; font-size: 12px; }
+    .timeline .step.active { border-color: #9dc4ff; background: #eef5ff; color: #234e8f; font-weight: bold; }
+    .timeline .step.done { border-color: #9fdfb1; background: #effcf3; color: #0f7a2f; }
+    .svg-node.running { fill: #fff4d8 !important; stroke: #c98a00 !important; }
+    .svg-node.reconstructed { fill: #e8fbe9 !important; stroke: #18a64a !important; }
+    .svg-node.failed { fill: #ffe9e9 !important; stroke: #d92d20 !important; }
+    .link-label { font-size: 11px; fill: #555; }
+    .event-card { max-height: 250px; overflow: auto; border: 1px solid #e6e6e6; border-radius: 8px; background: #fff; padding: 8px; }
+    .event-item { font-size: 13px; border-bottom: 1px dashed #ececec; padding: 6px 2px; }
+    .event-item:last-child { border-bottom: none; }
+    .event-ts { color: #666; margin-right: 6px; }
+    .event-badge { font-size: 11px; padding: 2px 6px; border-radius: 999px; margin-right: 6px; }
+    .event-badge.fail { background: #ffe9e9; color: #a81f1f; border: 1px solid #f1b0b0; }
+    .event-badge.warn { background: #fff8e8; color: #8a6400; border: 1px solid #ecd08f; }
+    .event-badge.ok { background: #edfff2; color: #12672a; border: 1px solid #9fd9ae; }
+    .fault-banner { margin-top: 8px; display: none; padding: 8px 10px; border-radius: 8px; font-weight: bold; }
+    .fault-banner.show { display: block; }
+    .fault-banner.fail { background: #ffeaea; color: #9f1f1f; border: 1px solid #f2b2b2; }
+    .fault-banner.warn { background: #fff7e8; color: #835e00; border: 1px solid #ebd094; }
+    .adaptive-panel { display: none; margin-top: 10px; border: 1px solid #d8e6ff; background: #f5f9ff; border-radius: 8px; padding: 10px; }
+    .adaptive-panel.show { display: block; }
+    .adaptive-grid { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 8px; }
+    .adaptive-item { font-size: 13px; }
+    .adaptive-peer-good { color: #146c2e; }
+    .adaptive-peer-warn { color: #8a6400; }
+    .adaptive-peer-bad { color: #9f1f1f; }
+    .fault-mode-group { display: inline-flex; gap: 10px; align-items: center; font-size: 13px; color: #444; }
+    .fault-mode-group label { display: inline-flex; align-items: center; gap: 4px; }
+  </style>
+</head>
+<body>
+  <h1>EdgeHydra Live Demo</h1>
+  <div class="muted">Chọn mode, kích thước file, profile lỗi rồi bấm Run Demo để mô phỏng live 1 lượt.</div>
+
+  <div class="card">
+    <div class="row">
+      <select id="method">
+        <option value="edgehydra">EdgeHydra</option>
+        <option value="edgedis">EdgeDis</option>
+      </select>
+      <select id="fault">
+        <option value="normal">Normal</option>
+        <option value="slow">Slow Servers</option>
+        <option value="failed">Failed Server</option>
+      </select>
+      <div class="fault-mode-group">
+        <span>Fault mode:</span>
+        <label><input type="radio" name="fault_mode" value="paper"> Paper fixed</label>
+        <label><input type="radio" name="fault_mode" value="random" checked> Random visual</label>
+      </div>
+      <input id="size" type="number" min="1" max="144" value="24" />
+      <button id="btn-run">Run Demo</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Sơ đồ mô phỏng phân tán</h3>
+    <div class="topology-wrap">
+    <svg viewBox="0 0 900 360" width="100%" role="img" aria-label="EdgeHydra topology">
+      <defs>
+        <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L9,3 z" fill="#2f7ed8"></path>
+        </marker>
+        <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L9,3 z" fill="#d8562f"></path>
+        </marker>
+      </defs>
+
+      <rect id="node-cloud" class="node-box svg-node" x="380" y="20" width="140" height="56" rx="10" fill="#eef5ff" stroke="#2f7ed8"></rect>
+      <text x="450" y="50" text-anchor="middle" font-size="16" fill="#1a4e8a">Cloud Node</text>
+
+      <rect id="node-e0" class="node-box svg-node" x="80" y="140" width="140" height="56" rx="10" fill="#fff7ef" stroke="#d8562f"></rect>
+      <rect id="node-e1" class="node-box svg-node" x="280" y="140" width="140" height="56" rx="10" fill="#fff7ef" stroke="#d8562f"></rect>
+      <rect id="node-e2" class="node-box svg-node" x="480" y="140" width="140" height="56" rx="10" fill="#fff7ef" stroke="#d8562f"></rect>
+      <rect id="node-e3" class="node-box svg-node" x="680" y="140" width="140" height="56" rx="10" fill="#fff7ef" stroke="#d8562f"></rect>
+      <text id="fail-mark-e0" x="210" y="136" text-anchor="middle" font-size="18" fill="#d92d20" visibility="hidden">X</text>
+      <text x="150" y="172" text-anchor="middle" font-size="15">Edge e0</text>
+      <text x="350" y="172" text-anchor="middle" font-size="15">Edge e1</text>
+      <text id="fail-mark-e1" x="410" y="136" text-anchor="middle" font-size="18" fill="#d92d20" visibility="hidden">X</text>
+      <text x="550" y="172" text-anchor="middle" font-size="15">Edge e2</text>
+      <text id="fail-mark-e2" x="610" y="136" text-anchor="middle" font-size="18" fill="#d92d20" visibility="hidden">X</text>
+      <text x="750" y="172" text-anchor="middle" font-size="15">Edge e3</text>
+      <text id="fail-mark-e3" x="810" y="136" text-anchor="middle" font-size="18" fill="#d92d20" visibility="hidden">X</text>
+
+      <line class="flow-line cloud-line" x1="430" y1="76" x2="160" y2="138" stroke="#2f7ed8" stroke-width="2.5" marker-end="url(#arrow-blue)"></line>
+      <line class="flow-line cloud-line" x1="450" y1="76" x2="350" y2="138" stroke="#2f7ed8" stroke-width="2.5" marker-end="url(#arrow-blue)"></line>
+      <line class="flow-line cloud-line" x1="470" y1="76" x2="550" y2="138" stroke="#2f7ed8" stroke-width="2.5" marker-end="url(#arrow-blue)"></line>
+      <line class="flow-line cloud-line" x1="490" y1="76" x2="740" y2="138" stroke="#2f7ed8" stroke-width="2.5" marker-end="url(#arrow-blue)"></line>
+      <text id="lbl-c2e" class="link-label" x="448" y="106" text-anchor="middle">C2E: 0 B</text>
+
+      <line class="flow-line edge-line" x1="220" y1="168" x2="280" y2="168" stroke="#d8562f" stroke-width="2.2" marker-end="url(#arrow-orange)"></line>
+      <line class="flow-line edge-line" x1="420" y1="168" x2="480" y2="168" stroke="#d8562f" stroke-width="2.2" marker-end="url(#arrow-orange)"></line>
+      <line class="flow-line edge-line" x1="620" y1="168" x2="680" y2="168" stroke="#d8562f" stroke-width="2.2" marker-end="url(#arrow-orange)"></line>
+      <line class="flow-line edge-line" x1="680" y1="190" x2="220" y2="190" stroke="#d8562f" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"></line>
+      <text id="lbl-e2e" class="link-label" x="452" y="210" text-anchor="middle">E2E: 0 B</text>
+
+      <text x="450" y="246" text-anchor="middle" font-size="14" fill="#333">
+        Stage 1: Cloud gửi block mã hóa (mesbd) tới Edge Nodes
+      </text>
+      <text x="450" y="272" text-anchor="middle" font-size="14" fill="#333">
+        Stage 2-3: Edge forward + heartbeat/request (leaderless supplement)
+      </text>
+      <text x="450" y="298" text-anchor="middle" font-size="14" fill="#333">
+        Stage 4: Node nhận đủ k block sẽ reconstruct và broadcast dừng dư thừa
+      </text>
+    </svg>
+    <div>
+      <div class="big-kpi">
+        <div class="item"><div class="v" id="live-stage">-</div><div class="l">Current stage</div></div>
+        <div class="item"><div class="v" id="live-recon">0/4</div><div class="l">Nodes reconstructed</div></div>
+        <div class="item"><div class="v" id="live-c2e">0</div><div class="l">Cloud -> Edge bytes</div></div>
+        <div class="item"><div class="v" id="live-e2e">0</div><div class="l">Edge -> Edge bytes</div></div>
+      </div>
+      <div style="margin-top:10px">
+        <span id="chip-mode" class="chip">mode: -</span>
+        <span id="chip-fault" class="chip">fault: -</span>
+      </div>
+      <div id="fault-banner" class="fault-banner"></div>
+      <div class="timeline">
+        <div id="tl-setup" class="step">Setup</div>
+        <div id="tl-s1" class="step">Stage 1</div>
+        <div id="tl-s23" class="step">Stage 2-3</div>
+        <div id="tl-s4" class="step">Stage 4</div>
+        <div id="tl-done" class="step">Done</div>
+      </div>
+      <div id="adaptive-panel" class="adaptive-panel">
+        <div style="font-weight:bold; margin-bottom:6px;">Adaptive Scheduling (EdgeHydra)</div>
+        <div class="adaptive-item" style="margin-bottom:6px;">
+          View from node:
+          <select id="ad-source-select">
+            <option value="e0">e0</option>
+            <option value="e1">e1</option>
+            <option value="e2">e2</option>
+            <option value="e3">e3</option>
+          </select>
+        </div>
+        <div class="adaptive-grid">
+          <div class="adaptive-item">Probe interval: <span id="ad-probe">-</span>s</div>
+          <div class="adaptive-item">Probe timeout: <span id="ad-timeout">-</span>s</div>
+          <div class="adaptive-item">EWMA alpha: <span id="ad-alpha">-</span></div>
+          <div class="adaptive-item">Target fanout: <span id="ad-fanout">-</span></div>
+        </div>
+        <div class="adaptive-item" style="margin-top:6px;">Ranked peers (real): <span id="ad-rank">-</span></div>
+        <div class="adaptive-item" style="margin-top:4px;">Source node: <span id="ad-source">-</span></div>
+        <div class="adaptive-item" style="margin-top:4px;">Peer RTT/ok: <span id="ad-peer-stats">-</span></div>
+      </div>
+    </div>
+    </div>
+    <div class="legend">
+      <div><span class="dot" style="background:#2f7ed8"></span>Cloud -> Edge (TCP data)</div>
+      <div><span class="dot" style="background:#d8562f"></span>Edge -> Edge (forward/supplement)</div>
+    </div>
+    <div id="stage-pill" class="stage-pill">Stage 1: Cloud distributing coded blocks</div>
+
+    <div class="nodes-grid">
+      <div class="node-card">
+        <div class="node-title">Edge e0</div>
+        <div class="progress-wrap"><div id="pb-e0" class="progress-fill"></div></div>
+        <div class="node-meta"><span id="cnt-e0">0 / k blocks</span><span id="st-e0" class="node-state">Receiving</span></div>
+        <div id="blk-e0" class="node-extra">blocks: []</div>
+      </div>
+      <div class="node-card">
+        <div class="node-title">Edge e1</div>
+        <div class="progress-wrap"><div id="pb-e1" class="progress-fill"></div></div>
+        <div class="node-meta"><span id="cnt-e1">0 / k blocks</span><span id="st-e1" class="node-state">Receiving</span></div>
+        <div id="blk-e1" class="node-extra">blocks: []</div>
+      </div>
+      <div class="node-card">
+        <div class="node-title">Edge e2</div>
+        <div class="progress-wrap"><div id="pb-e2" class="progress-fill"></div></div>
+        <div class="node-meta"><span id="cnt-e2">0 / k blocks</span><span id="st-e2" class="node-state">Receiving</span></div>
+        <div id="blk-e2" class="node-extra">blocks: []</div>
+      </div>
+      <div class="node-card">
+        <div class="node-title">Edge e3</div>
+        <div class="progress-wrap"><div id="pb-e3" class="progress-fill"></div></div>
+        <div class="node-meta"><span id="cnt-e3">0 / k blocks</span><span id="st-e3" class="node-state">Receiving</span></div>
+        <div id="blk-e3" class="node-extra">blocks: []</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="status">Ready.</div>
+
+  <div class="card">
+    <h3>Event Timeline</h3>
+    <div id="events" class="event-card">No events yet.</div>
+  </div>
+
+  <div class="card">
+    <h3>Kết quả lượt chạy gần nhất</h3>
+    <div class="kpi">
+      <div><div class="label">Scenario</div><div class="value" id="k-scenario">-</div></div>
+      <div><div class="label">Distribution Time (s)</div><div class="value" id="k-time">-</div></div>
+      <div><div class="label">Distribution Cost</div><div class="value" id="k-cost">-</div></div>
+      <div><div class="label">Cloud -> Edge (bytes)</div><div class="value" id="k-c2e">-</div></div>
+      <div><div class="label">Edge -> Edge (bytes)</div><div class="value" id="k-e2e">-</div></div>
+    </div>
+  </div>
+
+  <h3>Log cloud (tail)</h3>
+  <div id="logs">No run yet.</div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const logsEl = document.getElementById("logs");
+    const kScenario = document.getElementById("k-scenario");
+    const kTime = document.getElementById("k-time");
+    const kCost = document.getElementById("k-cost");
+    const kC2E = document.getElementById("k-c2e");
+    const kE2E = document.getElementById("k-e2e");
+    const liveStageEl = document.getElementById("live-stage");
+    const liveReconEl = document.getElementById("live-recon");
+    const liveC2EEl = document.getElementById("live-c2e");
+    const liveE2EEl = document.getElementById("live-e2e");
+    const chipMode = document.getElementById("chip-mode");
+    const chipFault = document.getElementById("chip-fault");
+    const lblC2E = document.getElementById("lbl-c2e");
+    const lblE2E = document.getElementById("lbl-e2e");
+    const eventsEl = document.getElementById("events");
+    const faultBanner = document.getElementById("fault-banner");
+    const failMarks = {
+      e0: document.getElementById("fail-mark-e0"),
+      e1: document.getElementById("fail-mark-e1"),
+      e2: document.getElementById("fail-mark-e2"),
+      e3: document.getElementById("fail-mark-e3"),
+    };
+    const stagePill = document.getElementById("stage-pill");
+    const adaptivePanel = document.getElementById("adaptive-panel");
+    const adProbe = document.getElementById("ad-probe");
+    const adTimeout = document.getElementById("ad-timeout");
+    const adAlpha = document.getElementById("ad-alpha");
+    const adFanout = document.getElementById("ad-fanout");
+    const adRank = document.getElementById("ad-rank");
+    const adSource = document.getElementById("ad-source");
+    const adPeerStats = document.getElementById("ad-peer-stats");
+    const adSourceSelect = document.getElementById("ad-source-select");
+    const cloudLines = Array.from(document.querySelectorAll(".cloud-line"));
+    const edgeLines = Array.from(document.querySelectorAll(".edge-line"));
+    const nodeCloud = document.getElementById("node-cloud");
+    const edgeNodes = ["node-e0", "node-e1", "node-e2", "node-e3"].map(id => document.getElementById(id));
+    const nodeIds = ["e0", "e1", "e2", "e3"];
+    function fmtBytes(n) {
+      const x = Number(n || 0);
+      if (x > 1024 * 1024) return `${(x / 1024 / 1024).toFixed(2)} MiB`;
+      if (x > 1024) return `${(x / 1024).toFixed(1)} KiB`;
+      return `${x} B`;
+    }
+
+    function setTimeline(active, doneList=[]) {
+      ["tl-setup","tl-s1","tl-s23","tl-s4","tl-done"].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.remove("active", "done");
+        if (doneList.includes(id)) el.classList.add("done");
+        if (id === active) el.classList.add("active");
+      });
+    }
+
+    let kTarget = 3;
+    let nodeCounts = { e0: 0, e1: 0, e2: 0, e3: 0 };
+    let currentJobId = null;
+    let pollTimer = null;
+    let eventItems = [];
+    let prevNodeState = {};
+    let prevReceivedBlocks = {};
+    let prevStageLabel = "";
+    let prevRecon = -1;
+    let selectedAdaptiveSource = "e0";
+
+    function tsNow() {
+      const d = new Date();
+      return d.toLocaleTimeString("en-GB", { hour12: false });
+    }
+
+    function pushEvent(kind, msg) {
+      const cls = kind === "fail" ? "fail" : (kind === "warn" ? "warn" : "ok");
+      eventItems.unshift({ ts: tsNow(), cls, msg });
+      eventItems = eventItems.slice(0, 18);
+      eventsEl.innerHTML = eventItems.map(e =>
+        `<div class="event-item"><span class="event-ts">${e.ts}</span><span class="event-badge ${e.cls}">${e.cls.toUpperCase()}</span>${e.msg}</div>`
+      ).join("");
+    }
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    function adaptivePeerClass(p) {
+      const okRate = Number(p?.ok_rate || 0);
+      const rtt = Number(p?.ewma_rtt_ms || 0);
+      if (okRate < 0.5) return "adaptive-peer-bad";
+      if (rtt > 50) return "adaptive-peer-warn";
+      return "adaptive-peer-good";
+    }
+
+    function renderNodeProgress() {
+      nodeIds.forEach((id) => {
+        const c = nodeCounts[id];
+        const pct = Math.max(0, Math.min(100, Math.round((c / kTarget) * 100)));
+        const pb = document.getElementById(`pb-${id}`);
+        const cnt = document.getElementById(`cnt-${id}`);
+        pb.style.width = `${pct}%`;
+        cnt.textContent = `${Math.min(c, kTarget)} / ${kTarget} blocks`;
+        pb.style.background = c >= kTarget ? "#18a64a" : "#2f7ed8";
+      });
+    }
+
+    function resetNodeProgress() {
+      nodeCounts = { e0: 0, e1: 0, e2: 0, e3: 0 };
+      nodeIds.forEach((id) => {
+        const st = document.getElementById(`st-${id}`);
+        st.textContent = "Receiving";
+        st.classList.remove("ok", "fail", "warn");
+      });
+      renderNodeProgress();
+      prevNodeState = {};
+      prevReceivedBlocks = {};
+      prevStageLabel = "";
+      prevRecon = -1;
+      eventItems = [];
+      eventsEl.textContent = "No events yet.";
+      faultBanner.className = "fault-banner";
+      faultBanner.textContent = "";
+      adaptivePanel.classList.remove("show");
+      selectedAdaptiveSource = adSourceSelect.value || "e0";
+      Object.values(failMarks).forEach(el => el.setAttribute("visibility", "hidden"));
+    }
+
+    function clearAnimationState() {
+      cloudLines.forEach(l => l.classList.remove("active", "active-orange"));
+      edgeLines.forEach(l => l.classList.remove("active", "active-orange"));
+      nodeCloud.classList.remove("active");
+      edgeNodes.forEach(n => n.classList.remove("active"));
+    }
+
+    function applyStage(stageIdx) {
+      clearAnimationState();
+      if (stageIdx === 0) {
+        stagePill.textContent = "Stage 1: Cloud distributing coded blocks";
+        nodeCloud.classList.add("active");
+        cloudLines.forEach(l => l.classList.add("active"));
+      } else if (stageIdx === 1) {
+        stagePill.textContent = "Stage 2-3: Edge forwarding + leaderless supplement";
+        edgeNodes.forEach(n => n.classList.add("active"));
+        edgeLines.forEach(l => l.classList.add("active-orange"));
+      } else {
+        stagePill.textContent = "Stage 4: Reconstruction + stop redundant transfer";
+        edgeNodes.forEach(n => n.classList.add("active"));
+      }
+    }
+
+    applyStage(0);
+    resetNodeProgress();
+    
+    function applyLiveToNodes(live) {
+      if (!live || !live.nodes) return;
+      const maxTraffic = Math.max(1, ...live.nodes.map(x => Number(x.traffic_bytes || 0)));
+      nodeIds.forEach((id) => {
+        const n = live.nodes.find(x => x.id === id);
+        if (!n) return;
+        const st = document.getElementById(`st-${id}`);
+        const box = document.getElementById(`node-${id}`);
+        const blk = document.getElementById(`blk-${id}`);
+        nodeCounts[id] = Number(n.k_reached || 0);
+        const blocks = Array.isArray(n.received_block_ids) ? n.received_block_ids.map(x => Number(x)) : [];
+        blocks.sort((a, b) => a - b);
+        blk.textContent = `blocks: [${blocks.join(", ")}]`;
+        blk.title = `Block IDs at ${id}: [${blocks.join(", ")}]`;
+        const prevBlocks = Array.isArray(prevReceivedBlocks[id]) ? prevReceivedBlocks[id] : [];
+        const newBlocks = blocks.filter(b => !prevBlocks.includes(b));
+        newBlocks.forEach(b => pushEvent("ok", `${id} received block ${b}`));
+        prevReceivedBlocks[id] = blocks;
+        if (n.fault_state === "failed_injected" || String(n.status || "").toLowerCase().includes("exited")) {
+          st.textContent = `Failed (${n.status})`;
+          st.classList.remove("ok", "warn");
+          st.classList.add("fail");
+          box.classList.remove("running", "reconstructed");
+          box.classList.add("failed");
+          if (failMarks[id]) {
+            failMarks[id].setAttribute("visibility", "visible");
+          }
+        } else if (n.reconstructed) {
+          st.textContent = `Reconstructed (${n.status})`;
+          st.classList.remove("fail", "warn");
+          st.classList.add("ok");
+          box.classList.remove("running", "failed");
+          box.classList.add("reconstructed");
+        } else if (n.fault_state === "slow_injected") {
+          st.textContent = `Slow (${n.status})`;
+          st.classList.remove("ok", "fail");
+          st.classList.add("warn");
+          box.classList.remove("reconstructed", "failed");
+          box.classList.add("running");
+        } else if (String(n.status || "").toLowerCase().includes("running")) {
+          st.textContent = `Receiving (${n.status})`;
+          st.classList.remove("ok", "fail");
+          st.classList.add("warn");
+          box.classList.remove("reconstructed", "failed");
+          box.classList.add("running");
+        } else {
+          st.textContent = n.status || "unknown";
+          st.classList.remove("ok", "fail");
+          st.classList.add("warn");
+          box.classList.remove("reconstructed", "failed");
+          box.classList.add("running");
+        }
+        const pb = document.getElementById(`pb-${id}`);
+        const trafficRatio = Math.max(0.15, Number(n.traffic_bytes || 0) / maxTraffic);
+        pb.style.opacity = String(trafficRatio.toFixed(2));
+
+        const nowState = st.textContent;
+        if (prevNodeState[id] && prevNodeState[id] !== nowState) {
+          if (nowState.startsWith("Failed")) {
+            pushEvent("fail", `${id} failed (${n.status})`);
+          } else if (nowState.startsWith("Reconstructed")) {
+            pushEvent("ok", `${id} reached k blocks and reconstructed`);
+          } else if (nowState.startsWith("Slow")) {
+            pushEvent("warn", `${id} under slow profile (delay/drop active)`);
+          } else if (nowState.startsWith("Receiving")) {
+            pushEvent("warn", `${id} resumed receiving`);
+          }
+        }
+        prevNodeState[id] = nowState;
+      });
+      renderNodeProgress();
+    }
+
+    function applyLiveStage(live, phase) {
+      const p = String(phase || "");
+      const stage = String(live?.stage_label || "");
+      if (p === "done") {
+        applyStage(2);
+        stagePill.textContent = "Finalized";
+        setTimeline("tl-done", ["tl-setup","tl-s1","tl-s23","tl-s4"]);
+      } else if (p === "error") {
+        clearAnimationState();
+        stagePill.textContent = "Failed: check logs/status";
+        setTimeline("tl-done", ["tl-setup","tl-s1","tl-s23"]);
+      } else if (stage.includes("Stage 4")) {
+        applyStage(2);
+        setTimeline("tl-s4", ["tl-setup","tl-s1","tl-s23"]);
+      } else if (stage.includes("Stage 1-3")) {
+        applyStage(1);
+        setTimeline("tl-s23", ["tl-setup","tl-s1"]);
+      } else if (p === "compose_up" || p === "run_cloud") {
+        applyStage(0);
+        setTimeline("tl-s1", ["tl-setup"]);
+      } else {
+        applyStage(0);
+        setTimeline("tl-setup", []);
+      }
+      if (prevStageLabel && prevStageLabel !== stagePill.textContent) {
+        pushEvent("warn", `Stage changed: ${stagePill.textContent}`);
+      }
+      prevStageLabel = stagePill.textContent;
+    }
+
+    async function pollStatusOnce() {
+      if (!currentJobId) return;
+      const res = await fetch(`/api/demo/status/${currentJobId}`);
+      const data = await res.json();
+      const live = data.live || {};
+      const adaptive = live.adaptive || {};
+      const reconstructed = Number(live.reconstructed_count || data.reconstructed_count || 0);
+      const expectedTarget = Number(live.expected_target || data.expected_target || 4);
+      const completionReason = String(live.completion_reason || data.completion_reason || "");
+      applyLiveStage(live, data.phase);
+      applyLiveToNodes(live);
+      setStatus(`Phase: ${data.phase} | ${live.stage_label || "-"} | elapsed ${data.elapsed_s}s`);
+      liveStageEl.textContent = live.stage_label || "-";
+      liveReconEl.textContent = `${reconstructed}/${expectedTarget}`;
+      liveC2EEl.textContent = fmtBytes(live.cloud_bytes || 0);
+      const e2e = Number(live.edge_bytes || 0);
+      liveE2EEl.textContent = fmtBytes(e2e);
+      lblC2E.textContent = `C2E: ${fmtBytes(live.cloud_bytes || 0)}`;
+      lblE2E.textContent = `E2E: ${fmtBytes(e2e)}`;
+      const cloudIntensity = Math.min(1, Number(live.cloud_bytes || 0) / (1024 * 1024));
+      const edgeIntensity = Math.min(1, e2e / (1024 * 1024));
+      cloudLines.forEach(l => l.style.opacity = String(0.25 + cloudIntensity * 0.75));
+      edgeLines.forEach(l => l.style.opacity = String(0.25 + edgeIntensity * 0.75));
+      if (adaptive.enabled) {
+        adaptivePanel.classList.add("show");
+        const allSources = adaptive.all_sources || {};
+        const selectedSnap = allSources[selectedAdaptiveSource] || null;
+        if (!selectedSnap) {
+          adProbe.textContent = "-";
+          adTimeout.textContent = "-";
+          adAlpha.textContent = "-";
+          adFanout.textContent = adaptive.target_fanout ?? "-";
+          adRank.textContent = "No telemetry — node may be offline";
+          adSource.textContent = selectedAdaptiveSource;
+          adPeerStats.innerHTML = `<span class="adaptive-peer-bad">No telemetry — node may be offline</span>`;
+        } else {
+          adProbe.textContent = selectedSnap.probe_interval_s ?? "-";
+          adTimeout.textContent = selectedSnap.probe_timeout_s ?? "-";
+          adAlpha.textContent = selectedSnap.ewma_alpha ?? "-";
+          adFanout.textContent = adaptive.target_fanout ?? "-";
+          adRank.textContent = (selectedSnap.ranked_peers || []).join(" > ") || "-";
+          adSource.textContent = selectedSnap.self_id || selectedAdaptiveSource;
+          const peerStats = (selectedSnap.peers || []).map(p => {
+            const rtt = Number(p.ewma_rtt_ms || 0).toFixed(1);
+            const ok = Math.round(Number(p.ok_rate || 0) * 100);
+            const cls = adaptivePeerClass(p);
+            return `<span class="${cls}">${p.peer_id}:${rtt}ms/${ok}%</span>`;
+          });
+          adPeerStats.innerHTML = peerStats.join(" | ") || "-";
+        }
+      } else {
+        adaptivePanel.classList.remove("show");
+      }
+      if (prevRecon >= 0 && reconstructed > prevRecon) {
+        pushEvent("ok", `Reconstructed nodes: ${reconstructed}/${expectedTarget}`);
+      }
+      prevRecon = reconstructed;
+      if (data.phase === "done") {
+        if (completionReason === "target_reached") {
+          stagePill.textContent = `Completed: ${reconstructed}/${expectedTarget} expected nodes reconstructed`;
+        } else if (completionReason === "timeout") {
+          stagePill.textContent = `Partial: ${reconstructed}/${expectedTarget} reconstructed — timeout reached`;
+        }
+        const r = data.result || {};
+        kScenario.textContent = data.scenario || "-";
+        kTime.textContent = r.distribution_time_s || "-";
+        kCost.textContent = r.distribution_cost_units || "-";
+        kC2E.textContent = r.cloud_to_edge_bytes || "-";
+        kE2E.textContent = r.edge_to_edge_bytes || "-";
+        logsEl.textContent = data.cloud_log_tail || "(empty)";
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      if (data.phase === "error") {
+        logsEl.textContent = data.error || "Run failed";
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    async function runDemo() {
+      const method = document.getElementById("method").value;
+      const fault = document.getElementById("fault").value;
+      const faultModeEl = document.querySelector("input[name='fault_mode']:checked");
+      const fault_mode = faultModeEl ? faultModeEl.value : "random";
+      const faultModeLabel = fault_mode === "paper" ? "Paper fixed" : "Random visual";
+      const file_size_mib = Number(document.getElementById("size").value || 24);
+      kTarget = method === "edgehydra" ? 3 : 4;
+      resetNodeProgress();
+      setStatus(`Starting demo: ${method}, ${fault}, ${fault_mode}, ${file_size_mib} MiB...`);
+      logsEl.textContent = "Running...";
+      chipMode.textContent = `mode: ${method}`;
+      chipMode.className = "chip ok";
+      chipFault.textContent = `fault: ${fault}`;
+      chipFault.className = fault === "failed" ? "chip fail" : (fault === "slow" ? "chip warn" : "chip ok");
+      if (method === "edgehydra") {
+        adaptivePanel.classList.add("show");
+      } else {
+        adaptivePanel.classList.remove("show");
+      }
+      pushEvent("warn", `Demo started: ${method}, ${fault}, ${faultModeLabel}, ${file_size_mib} MiB`);
+      const res = await fetch("/api/demo/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method, fault_profile: fault, fault_mode, file_size_mib })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setStatus(`Start failed`);
+        logsEl.textContent = data.detail || data.output || "No logs";
+        return;
+      }
+      const plan = data.fault_plan || {};
+      const activeMode = (data.fault_mode || plan.fault_mode || fault_mode);
+      const activeModeLabel = activeMode === "paper" ? "Paper fixed" : "Random visual";
+      if (fault === "failed") {
+        const failedEdges = (plan.failed_edges || []).join(", ") || "one random edge";
+        faultBanner.className = "fault-banner fail show";
+        faultBanner.textContent = `FAILED (${activeModeLabel}): ${failedEdges} will crash early.`;
+        pushEvent("fail", `Fault injected: ${failedEdges} crash profile armed`);
+      } else if (fault === "slow") {
+        const slowEdges = (plan.slow_edges || []).join(", ") || "random edges";
+        faultBanner.className = "fault-banner warn show";
+        faultBanner.textContent = `SLOW (${activeModeLabel}): delay/drop active on ${slowEdges}.`;
+        pushEvent("warn", `Fault injected: slow profile on ${slowEdges}`);
+      } else {
+        faultBanner.className = "fault-banner warn show";
+        faultBanner.textContent = `NORMAL (${activeModeLabel}): no injected faults.`;
+      }
+      currentJobId = data.job_id;
+      if (pollTimer) clearInterval(pollTimer);
+      await pollStatusOnce();
+      pollTimer = setInterval(pollStatusOnce, 2000);
+    }
+
+    adSourceSelect.addEventListener("change", () => {
+      selectedAdaptiveSource = adSourceSelect.value || "e0";
+      if (currentJobId) {
+        pollStatusOnce();
+      }
+    });
+
+    document.getElementById("btn-run").onclick = runDemo;
+  </script>
+</body>
+</html>
+
