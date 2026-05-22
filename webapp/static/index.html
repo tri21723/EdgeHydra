@@ -3,668 +3,1207 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EdgeHydra Live Demo</title>
+  <title>EdgeHydra — Distributed Edge Simulation</title>
+  <meta name="description" content="EdgeHydra live demo dashboard: fault-tolerant edge data distribution using erasure coding. Compare EdgeHydra vs EdgeDis across 4 scenarios." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #fafafa; color: #222; font-size: 15px; }
-    h1 { margin-bottom: 6px; }
-    .muted { color: #666; margin-bottom: 14px; }
-    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-    button, select, input { padding: 8px 12px; border: 1px solid #bbb; border-radius: 8px; background: #fff; }
-    button { cursor: pointer; }
-    button:hover { background: #f0f0f0; }
-    #status, #logs { white-space: pre-wrap; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
-    #status { min-height: 42px; margin-bottom: 12px; }
-    #logs { min-height: 180px; max-height: 340px; overflow: auto; font-family: monospace; font-size: 12px; }
-    .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-    .kpi { display: flex; gap: 10px; flex-wrap: wrap; }
-    .kpi > div { background: #f6f7fb; padding: 10px; border-radius: 8px; min-width: 160px; }
-    .label { font-size: 12px; color: #666; }
-    .value { font-size: 18px; font-weight: bold; margin-top: 2px; }
-    .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; }
-    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 6px; }
-    .stage-pill { display: inline-block; margin-top: 8px; padding: 6px 10px; border-radius: 999px; background: #eef5ff; border: 1px solid #c8dcff; font-size: 13px; }
-    .flow-line {
-      opacity: 0.3;
-      transition: opacity 0.25s ease, filter 0.25s ease, stroke-width 0.25s ease;
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #111827;
+      --bg3: #1a2236;
+      --border: #1e2d4a;
+      --border2: #2a3a5c;
+      --accent: #3b82f6;
+      --accent2: #60a5fa;
+      --accent-glow: rgba(59,130,246,0.18);
+      --orange: #f97316;
+      --orange-glow: rgba(249,115,22,0.18);
+      --green: #22c55e;
+      --green-glow: rgba(34,197,94,0.18);
+      --red: #ef4444;
+      --red-glow: rgba(239,68,68,0.18);
+      --yellow: #eab308;
+      --yellow-glow: rgba(234,179,8,0.18);
+      --text: #e2e8f0;
+      --text2: #94a3b8;
+      --text3: #64748b;
+      --card-bg: rgba(17,24,39,0.85);
+      --card-border: rgba(30,45,74,0.9);
+      --glass: rgba(26,34,54,0.7);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.6);
     }
-    .flow-line.active {
-      opacity: 1;
-      filter: drop-shadow(0 0 4px rgba(47,126,216,0.55));
-      stroke-width: 3.2;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
     }
-    .flow-line.active-orange {
-      opacity: 1;
-      filter: drop-shadow(0 0 4px rgba(216,86,47,0.55));
-      stroke-width: 3.2;
+    /* ── Header ─────────────────────────────────────────── */
+    .header {
+      background: linear-gradient(135deg, var(--bg2) 0%, #0d1625 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
     }
-    .node-box {
-      transition: transform 0.25s ease, filter 0.25s ease;
+    .header-logo {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent), #1d4ed8);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 16px rgba(59,130,246,0.4);
     }
-    .node-box.active {
-      transform: translateY(-2px);
-      filter: drop-shadow(0 2px 6px rgba(47,126,216,0.30));
+    .header-title { font-size: 20px; font-weight: 700; color: var(--text); }
+    .header-sub { font-size: 12px; color: var(--text3); margin-left: 2px; }
+    .header-badge {
+      margin-left: auto;
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(59,130,246,0.3);
+      color: var(--accent2);
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 12px; font-weight: 500;
     }
-    .nodes-grid { display: grid; grid-template-columns: repeat(2, minmax(240px, 1fr)); gap: 10px; margin-top: 10px; }
-    .node-card { border: 1px solid #e3e3e3; border-radius: 8px; padding: 8px; background: #fcfcff; }
-    .node-title { font-weight: bold; margin-bottom: 6px; }
-    .progress-wrap { width: 100%; height: 10px; border-radius: 999px; background: #eceef5; overflow: hidden; }
-    .progress-fill { height: 100%; width: 0%; background: #2f7ed8; transition: width 0.35s ease; }
-    .node-meta { margin-top: 6px; font-size: 12px; color: #555; display: flex; justify-content: space-between; }
-    .node-extra { margin-top: 4px; font-size: 11px; color: #777; font-family: monospace; }
-    .node-state.ok { color: #0f7a2f; font-weight: bold; }
-    .node-state.fail { color: #b42318; font-weight: bold; }
-    .node-state.warn { color: #b26a00; font-weight: bold; }
-    .topology-wrap { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; align-items: start; }
-    .big-kpi { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 8px; }
-    .big-kpi .item { border: 1px solid #e8e8e8; border-radius: 8px; padding: 10px; background: #fff; }
-    .big-kpi .v { font-size: 24px; font-weight: bold; line-height: 1.2; }
-    .big-kpi .l { font-size: 12px; color: #666; }
-    .chip { display: inline-block; padding: 4px 8px; border-radius: 999px; border: 1px solid #ddd; background: #fff; font-size: 12px; }
-    .chip.ok { border-color: #8ad4a0; background: #ecfff2; color: #146c2e; }
-    .chip.fail { border-color: #f3a4a4; background: #fff1f1; color: #9f1f1f; }
-    .chip.warn { border-color: #f0d490; background: #fff9ea; color: #8a6400; }
-    .timeline { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-    .timeline .step { padding: 6px 10px; border-radius: 8px; border: 1px solid #ddd; background: #fff; font-size: 12px; }
-    .timeline .step.active { border-color: #9dc4ff; background: #eef5ff; color: #234e8f; font-weight: bold; }
-    .timeline .step.done { border-color: #9fdfb1; background: #effcf3; color: #0f7a2f; }
-    .svg-node.running { fill: #fff4d8 !important; stroke: #c98a00 !important; }
-    .svg-node.reconstructed { fill: #e8fbe9 !important; stroke: #18a64a !important; }
-    .svg-node.failed { fill: #ffe9e9 !important; stroke: #d92d20 !important; }
-    .link-label { font-size: 11px; fill: #555; }
-    .event-card { max-height: 250px; overflow: auto; border: 1px solid #e6e6e6; border-radius: 8px; background: #fff; padding: 8px; }
-    .event-item { font-size: 13px; border-bottom: 1px dashed #ececec; padding: 6px 2px; }
-    .event-item:last-child { border-bottom: none; }
-    .event-ts { color: #666; margin-right: 6px; }
-    .event-badge { font-size: 11px; padding: 2px 6px; border-radius: 999px; margin-right: 6px; }
-    .event-badge.fail { background: #ffe9e9; color: #a81f1f; border: 1px solid #f1b0b0; }
-    .event-badge.warn { background: #fff8e8; color: #8a6400; border: 1px solid #ecd08f; }
-    .event-badge.ok { background: #edfff2; color: #12672a; border: 1px solid #9fd9ae; }
-    .fault-banner { margin-top: 8px; display: none; padding: 8px 10px; border-radius: 8px; font-weight: bold; }
+    .badge-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.85)} }
+    /* ── Tabs ─────────────────────────────────────────────*/
+    .tabs {
+      display: flex; gap: 2px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+    }
+    .tab {
+      padding: 13px 18px;
+      font-size: 13px; font-weight: 500;
+      color: var(--text3);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .tab:hover { color: var(--text2); }
+    .tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+    /* ── Layout ───────────────────────────────────────────*/
+    .page { display: none; padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+    .page.active { display: block; }
+    /* ── Cards ────────────────────────────────────────────*/
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow);
+    }
+    .card + .card, .card + .panel-row { margin-top: 16px; }
+    .card-title {
+      font-size: 14px; font-weight: 600; color: var(--text);
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title .icon { font-size: 16px; }
+    /* ── Controls ─────────────────────────────────────────*/
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .ctrl-group { display: flex; flex-direction: column; gap: 4px; }
+    .ctrl-label { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, input[type="number"] {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+      min-width: 130px;
+    }
+    select:focus, input[type="number"]:focus { border-color: var(--accent); }
+    .fault-mode-group { display: flex; gap: 12px; align-items: center; }
+    .fault-mode-group label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--text2);
+      cursor: pointer;
+    }
+    input[type="radio"] { accent-color: var(--accent); }
+    .btn {
+      padding: 9px 20px;
+      border-radius: var(--radius-sm);
+      border: none;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #1d4ed8);
+      color: #fff;
+      box-shadow: 0 0 16px rgba(59,130,246,0.3);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 24px rgba(59,130,246,0.5); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-ghost {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      color: var(--text2);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent2); }
+    /* ── Topology ─────────────────────────────────────────*/
+    .topology-layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
+    svg.topology { width: 100%; background: transparent; }
+    .svg-cloud-rect {
+      fill: rgba(59,130,246,0.12);
+      stroke: #3b82f6;
+      stroke-width: 1.5;
+      rx: 12; ry: 12;
+    }
+    .svg-edge-rect {
+      fill: rgba(249,115,22,0.10);
+      stroke: #f97316;
+      stroke-width: 1.5;
+    }
+    .flow-line { opacity: 0.2; transition: opacity 0.3s, stroke-width 0.3s; }
+    .flow-line.active { opacity: 1; stroke-width: 3; filter: drop-shadow(0 0 5px rgba(59,130,246,0.6)); }
+    .flow-line.active-orange { opacity: 1; stroke-width: 3; filter: drop-shadow(0 0 5px rgba(249,115,22,0.6)); }
+    .node-box { transition: filter 0.3s; }
+    .svg-node.running { fill: rgba(234,179,8,0.15) !important; stroke: var(--yellow) !important; }
+    .svg-node.reconstructed { fill: rgba(34,197,94,0.15) !important; stroke: var(--green) !important; }
+    .svg-node.failed { fill: rgba(239,68,68,0.12) !important; stroke: var(--red) !important; }
+    /* ── KPI grid ─────────────────────────────────────────*/
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi-item {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+    }
+    .kpi-val { font-size: 22px; font-weight: 700; line-height: 1.2; color: var(--text); }
+    .kpi-label { font-size: 11px; color: var(--text3); margin-top: 3px; }
+    /* ── Chips ────────────────────────────────────────────*/
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 500; border: 1px solid;
+    }
+    .chip-blue { background: var(--accent-glow); border-color: rgba(59,130,246,0.35); color: var(--accent2); }
+    .chip-green { background: var(--green-glow); border-color: rgba(34,197,94,0.35); color: var(--green); }
+    .chip-red { background: var(--red-glow); border-color: rgba(239,68,68,0.35); color: var(--red); }
+    .chip-yellow { background: var(--yellow-glow); border-color: rgba(234,179,8,0.35); color: var(--yellow); }
+    .chip-gray { background: rgba(100,116,139,0.15); border-color: rgba(100,116,139,0.3); color: var(--text3); }
+    /* ── Fault banner ─────────────────────────────────────*/
+    .fault-banner {
+      display: none; padding: 10px 14px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500; margin-top: 10px;
+    }
     .fault-banner.show { display: block; }
-    .fault-banner.fail { background: #ffeaea; color: #9f1f1f; border: 1px solid #f2b2b2; }
-    .fault-banner.warn { background: #fff7e8; color: #835e00; border: 1px solid #ebd094; }
-    .adaptive-panel { display: none; margin-top: 10px; border: 1px solid #d8e6ff; background: #f5f9ff; border-radius: 8px; padding: 10px; }
+    .fault-banner.fail { background: var(--red-glow); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+    .fault-banner.warn { background: var(--yellow-glow); border: 1px solid rgba(234,179,8,0.3); color: #fde68a; }
+    .fault-banner.info { background: var(--accent-glow); border: 1px solid rgba(59,130,246,0.3); color: var(--accent2); }
+    /* ── Timeline ─────────────────────────────────────────*/
+    .timeline { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+    .tl-step {
+      padding: 5px 10px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg3);
+      font-size: 11px; color: var(--text3);
+      transition: all 0.2s;
+    }
+    .tl-step.active { border-color: var(--accent); background: var(--accent-glow); color: var(--accent2); font-weight: 600; }
+    .tl-step.done { border-color: rgba(34,197,94,0.4); background: var(--green-glow); color: var(--green); }
+    /* ── Stage pill ───────────────────────────────────────*/
+    .stage-pill {
+      margin-top: 10px; padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--bg3); border: 1px solid var(--border2);
+      font-size: 12px; color: var(--text2); font-weight: 500;
+      display: inline-block;
+    }
+    /* ── Node cards ───────────────────────────────────────*/
+    .nodes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
+    .node-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      transition: border-color 0.2s;
+    }
+    .node-card.reconstructed { border-color: rgba(34,197,94,0.4); }
+    .node-card.failed { border-color: rgba(239,68,68,0.3); }
+    .node-card.slow { border-color: rgba(234,179,8,0.3); }
+    .node-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .node-name { font-weight: 600; font-size: 13px; }
+    .progress-wrap { width: 100%; height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.4s ease; }
+    .progress-fill.done { background: linear-gradient(90deg, var(--green), #4ade80); }
+    .node-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+    .node-count { font-size: 12px; color: var(--text2); }
+    .node-status { font-size: 11px; }
+    .node-blocks {
+      margin-top: 5px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: var(--text3);
+      display: flex; flex-wrap: wrap; gap: 3px;
+    }
+    .block-badge {
+      display: inline-block; padding: 1px 5px;
+      border-radius: 4px; font-size: 10px;
+      background: rgba(59,130,246,0.15);
+      border: 1px solid rgba(59,130,246,0.3);
+      color: var(--accent2);
+    }
+    /* ── Adaptive panel ───────────────────────────────────*/
+    .adaptive-panel {
+      display: none; margin-top: 12px;
+      background: var(--bg3); border: 1px solid rgba(59,130,246,0.25);
+      border-radius: var(--radius-sm); padding: 12px;
+    }
     .adaptive-panel.show { display: block; }
-    .adaptive-grid { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 8px; }
-    .adaptive-item { font-size: 13px; }
-    .adaptive-peer-good { color: #146c2e; }
-    .adaptive-peer-warn { color: #8a6400; }
-    .adaptive-peer-bad { color: #9f1f1f; }
-    .fault-mode-group { display: inline-flex; gap: 10px; align-items: center; font-size: 13px; color: #444; }
-    .fault-mode-group label { display: inline-flex; align-items: center; gap: 4px; }
+    .adaptive-title { font-size: 12px; font-weight: 600; color: var(--accent2); margin-bottom: 8px; }
+    .adaptive-params { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+    .ap-item { font-size: 11px; color: var(--text2); }
+    .ap-item span { color: var(--text); font-weight: 500; }
+    .peer-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+    .peer-table th { text-align: left; color: var(--text3); padding: 3px 6px; border-bottom: 1px solid var(--border); }
+    .peer-table td { padding: 4px 6px; color: var(--text2); font-family: 'JetBrains Mono', monospace; }
+    .peer-good { color: var(--green) !important; }
+    .peer-warn { color: var(--yellow) !important; }
+    .peer-bad { color: var(--red) !important; }
+    /* ── DB Panel ─────────────────────────────────────────*/
+    .db-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .db-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; }
+    .db-title { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+    .db-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    .db-table th { text-align: left; color: var(--text3); padding: 2px 4px; border-bottom: 1px solid var(--border); }
+    .db-table td { padding: 3px 4px; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+    .db-table td.temp { color: var(--green); font-weight: 600; }
+    .db-count { font-size: 10px; color: var(--text3); text-align: right; margin-top: 4px; }
+    /* ── Events ───────────────────────────────────────────*/
+    .events-list { max-height: 200px; overflow-y: auto; }
+    .event-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(30,45,74,0.5); font-size: 12px; }
+    .event-item:last-child { border-bottom: none; }
+    .event-ts { color: var(--text3); font-family: 'JetBrains Mono', monospace; font-size: 10px; white-space: nowrap; padding-top: 1px; }
+    .ev-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .ev-ok { background: var(--green-glow); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .ev-fail { background: var(--red-glow); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+    .ev-warn { background: var(--yellow-glow); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+    /* ── Results card ─────────────────────────────────────*/
+    .results-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .res-item { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; }
+    .res-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; }
+    .res-value { font-size: 18px; font-weight: 700; margin-top: 3px; }
+    /* ── Log ──────────────────────────────────────────────*/
+    .log-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--text3);
+      white-space: pre-wrap; max-height: 280px; overflow-y: auto;
+      line-height: 1.7;
+    }
+    /* ── Status bar ───────────────────────────────────────*/
+    .status-bar {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 12px; color: var(--text2);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); }
+    .status-dot.running { background: var(--yellow); animation: pulse 1s infinite; }
+    .status-dot.done { background: var(--green); }
+    .status-dot.error { background: var(--red); }
+    /* ── Metrics page ─────────────────────────────────────*/
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .chart-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 20px; }
+    .chart-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .chart-sub { font-size: 12px; color: var(--text3); margin-bottom: 14px; }
+    .chart-wrap { position: relative; height: 280px; }
+    .summary-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+    .summary-table th { background: var(--bg3); padding: 8px 10px; text-align: left; color: var(--text3); font-weight: 500; font-size: 11px; border-bottom: 1px solid var(--border); }
+    .summary-table td { padding: 8px 10px; border-bottom: 1px solid rgba(30,45,74,0.5); color: var(--text2); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+    .summary-table tr:last-child td { border-bottom: none; }
+    .summary-table .better { color: var(--green); font-weight: 600; }
+    .summary-table .worse { color: var(--red); }
+    .legend-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; font-size: 12px; color: var(--text3); }
+    .legend-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; }
+    .loading-overlay { color: var(--text3); text-align: center; padding: 40px; font-size: 13px; }
+    /* ── Panel row ────────────────────────────────────────*/
+    .panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    /* ── Misc ─────────────────────────────────────────────*/
+    .mt-8 { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    .muted { color: var(--text3); font-size: 12px; }
+    /* ── Scrollbar ────────────────────────────────────────*/
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a4e6e; }
   </style>
 </head>
 <body>
-  <h1>EdgeHydra Live Demo</h1>
-  <div class="muted">Chọn mode, kích thước file, profile lỗi rồi bấm Run Demo để mô phỏng live 1 lượt.</div>
 
+<!-- ══ Header ══════════════════════════════════════════════════════ -->
+<header class="header">
+  <div class="header-logo">🌊</div>
+  <div>
+    <div class="header-title">EdgeHydra</div>
+    <div class="header-sub">IS211 — Fault-tolerant Edge Data Distribution</div>
+  </div>
+  <div class="header-badge">
+    <span class="badge-dot"></span>
+    Simulation Dashboard
+  </div>
+</header>
+
+<!-- ══ Tabs ════════════════════════════════════════════════════════ -->
+<nav class="tabs" role="tablist">
+  <div class="tab active" id="tab-demo" role="tab" onclick="switchTab('demo')">🚀 Live Demo</div>
+  <div class="tab" id="tab-metrics" role="tab" onclick="switchTab('metrics')">📊 Metrics & Comparison</div>
+</nav>
+
+<!-- ══════════════════ TAB: LIVE DEMO ══════════════════════════════ -->
+<div class="page active" id="page-demo">
+
+  <!-- Controls -->
   <div class="card">
-    <div class="row">
-      <select id="method">
-        <option value="edgehydra">EdgeHydra</option>
-        <option value="edgedis">EdgeDis</option>
-      </select>
-      <select id="fault">
-        <option value="normal">Normal</option>
-        <option value="slow">Slow Servers</option>
-        <option value="failed">Failed Server</option>
-      </select>
-      <div class="fault-mode-group">
-        <span>Fault mode:</span>
-        <label><input type="radio" name="fault_mode" value="paper"> Paper fixed</label>
-        <label><input type="radio" name="fault_mode" value="random" checked> Random visual</label>
+    <div class="card-title"><span class="icon">⚙️</span> Run Configuration</div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="ctrl-label">Protocol</div>
+        <select id="method">
+          <option value="edgehydra">EdgeHydra (Erasure Coding)</option>
+          <option value="edgedis">EdgeDis (Baseline)</option>
+        </select>
       </div>
-      <input id="size" type="number" min="1" max="144" value="24" />
-      <button id="btn-run">Run Demo</button>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Fault Profile</div>
+        <select id="fault">
+          <option value="normal">Normal</option>
+          <option value="slow">Slow Servers (delay/drop)</option>
+          <option value="failed">Failed Server (crash)</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Fault Mode</div>
+        <div class="fault-mode-group">
+          <label><input type="radio" name="fault_mode" value="paper"> Paper fixed</label>
+          <label><input type="radio" name="fault_mode" value="random" checked> Random visual</label>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">File Size (MiB)</div>
+        <input id="size" type="number" min="1" max="144" value="24" style="width:100px;" />
+      </div>
+      <button class="btn btn-primary" id="btn-run" onclick="runDemo()">▶ Run Demo</button>
     </div>
   </div>
 
-  <div class="card">
-    <h3>Sơ đồ mô phỏng phân tán</h3>
-    <div class="topology-wrap">
-    <svg viewBox="0 0 900 360" width="100%" role="img" aria-label="EdgeHydra topology">
-      <defs>
-        <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L9,3 z" fill="#2f7ed8"></path>
-        </marker>
-        <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L9,3 z" fill="#d8562f"></path>
-        </marker>
-      </defs>
+  <!-- Status bar -->
+  <div id="status-bar" class="status-bar mt-8" style="margin-top:12px;">
+    <span class="status-dot" id="status-dot"></span>
+    <span id="status-text">Ready. Select options and click Run Demo.</span>
+    <span id="chip-mode" class="chip chip-gray" style="margin-left:auto;">mode: —</span>
+    <span id="chip-fault" class="chip chip-gray" style="margin-left:6px;">fault: —</span>
+  </div>
 
-      <rect id="node-cloud" class="node-box svg-node" x="380" y="20" width="140" height="56" rx="10" fill="#eef5ff" stroke="#2f7ed8"></rect>
-      <text x="450" y="50" text-anchor="middle" font-size="16" fill="#1a4e8a">Cloud Node</text>
+  <!-- Fault banner -->
+  <div id="fault-banner" class="fault-banner"></div>
 
-      <rect id="node-e0" class="node-box svg-node" x="80" y="140" width="140" height="56" rx="10" fill="#fff7ef" stroke="#d8562f"></rect>
-      <rect id="node-e1" class="node-box svg-node" x="280" y="140" width="140" height="56" rx="10" fill="#fff7ef" stroke="#d8562f"></rect>
-      <rect id="node-e2" class="node-box svg-node" x="480" y="140" width="140" height="56" rx="10" fill="#fff7ef" stroke="#d8562f"></rect>
-      <rect id="node-e3" class="node-box svg-node" x="680" y="140" width="140" height="56" rx="10" fill="#fff7ef" stroke="#d8562f"></rect>
-      <text id="fail-mark-e0" x="210" y="136" text-anchor="middle" font-size="18" fill="#d92d20" visibility="hidden">X</text>
-      <text x="150" y="172" text-anchor="middle" font-size="15">Edge e0</text>
-      <text x="350" y="172" text-anchor="middle" font-size="15">Edge e1</text>
-      <text id="fail-mark-e1" x="410" y="136" text-anchor="middle" font-size="18" fill="#d92d20" visibility="hidden">X</text>
-      <text x="550" y="172" text-anchor="middle" font-size="15">Edge e2</text>
-      <text id="fail-mark-e2" x="610" y="136" text-anchor="middle" font-size="18" fill="#d92d20" visibility="hidden">X</text>
-      <text x="750" y="172" text-anchor="middle" font-size="15">Edge e3</text>
-      <text id="fail-mark-e3" x="810" y="136" text-anchor="middle" font-size="18" fill="#d92d20" visibility="hidden">X</text>
+  <!-- Topology + Live KPIs -->
+  <div class="card mt-12" style="margin-top:14px;">
+    <div class="card-title"><span class="icon">🗺️</span> Network Topology</div>
+    <div class="topology-layout">
+      <!-- SVG Topology -->
+      <div>
+        <svg class="topology" viewBox="0 0 820 290" role="img" aria-label="EdgeHydra network topology">
+          <defs>
+            <marker id="arrow-blue" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#3b82f6"/>
+            </marker>
+            <marker id="arrow-orange" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#f97316"/>
+            </marker>
+            <filter id="glow-blue">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glow-orange">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
 
-      <line class="flow-line cloud-line" x1="430" y1="76" x2="160" y2="138" stroke="#2f7ed8" stroke-width="2.5" marker-end="url(#arrow-blue)"></line>
-      <line class="flow-line cloud-line" x1="450" y1="76" x2="350" y2="138" stroke="#2f7ed8" stroke-width="2.5" marker-end="url(#arrow-blue)"></line>
-      <line class="flow-line cloud-line" x1="470" y1="76" x2="550" y2="138" stroke="#2f7ed8" stroke-width="2.5" marker-end="url(#arrow-blue)"></line>
-      <line class="flow-line cloud-line" x1="490" y1="76" x2="740" y2="138" stroke="#2f7ed8" stroke-width="2.5" marker-end="url(#arrow-blue)"></line>
-      <text id="lbl-c2e" class="link-label" x="448" y="106" text-anchor="middle">C2E: 0 B</text>
+          <!-- Cloud node -->
+          <rect id="node-cloud" class="node-box svg-node svg-cloud-rect" x="320" y="16" width="180" height="52" rx="12" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="410" y="43" text-anchor="middle" font-size="15" font-weight="600" fill="#93c5fd" font-family="Inter, sans-serif">☁ Cloud Node</text>
+          <text x="410" y="60" text-anchor="middle" font-size="11" fill="#64748b" font-family="Inter, sans-serif">Encodes &amp; distributes shards</text>
 
-      <line class="flow-line edge-line" x1="220" y1="168" x2="280" y2="168" stroke="#d8562f" stroke-width="2.2" marker-end="url(#arrow-orange)"></line>
-      <line class="flow-line edge-line" x1="420" y1="168" x2="480" y2="168" stroke="#d8562f" stroke-width="2.2" marker-end="url(#arrow-orange)"></line>
-      <line class="flow-line edge-line" x1="620" y1="168" x2="680" y2="168" stroke="#d8562f" stroke-width="2.2" marker-end="url(#arrow-orange)"></line>
-      <line class="flow-line edge-line" x1="680" y1="190" x2="220" y2="190" stroke="#d8562f" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"></line>
-      <text id="lbl-e2e" class="link-label" x="452" y="210" text-anchor="middle">E2E: 0 B</text>
+          <!-- Edge nodes -->
+          <rect id="node-e0" class="node-box svg-node" x="28" y="148" width="160" height="60" rx="10" fill="rgba(249,115,22,0.10)" stroke="#f97316" stroke-width="1.5"/>
+          <rect id="node-e1" class="node-box svg-node" x="218" y="148" width="160" height="60" rx="10" fill="rgba(249,115,22,0.10)" stroke="#f97316" stroke-width="1.5"/>
+          <rect id="node-e2" class="node-box svg-node" x="442" y="148" width="160" height="60" rx="10" fill="rgba(249,115,22,0.10)" stroke="#f97316" stroke-width="1.5"/>
+          <rect id="node-e3" class="node-box svg-node" x="632" y="148" width="160" height="60" rx="10" fill="rgba(249,115,22,0.10)" stroke="#f97316" stroke-width="1.5"/>
 
-      <text x="450" y="246" text-anchor="middle" font-size="14" fill="#333">
-        Stage 1: Cloud gửi block mã hóa (mesbd) tới Edge Nodes
-      </text>
-      <text x="450" y="272" text-anchor="middle" font-size="14" fill="#333">
-        Stage 2-3: Edge forward + heartbeat/request (leaderless supplement)
-      </text>
-      <text x="450" y="298" text-anchor="middle" font-size="14" fill="#333">
-        Stage 4: Node nhận đủ k block sẽ reconstruct và broadcast dừng dư thừa
-      </text>
-    </svg>
-    <div>
-      <div class="big-kpi">
-        <div class="item"><div class="v" id="live-stage">-</div><div class="l">Current stage</div></div>
-        <div class="item"><div class="v" id="live-recon">0/4</div><div class="l">Nodes reconstructed</div></div>
-        <div class="item"><div class="v" id="live-c2e">0</div><div class="l">Cloud -> Edge bytes</div></div>
-        <div class="item"><div class="v" id="live-e2e">0</div><div class="l">Edge -> Edge bytes</div></div>
-      </div>
-      <div style="margin-top:10px">
-        <span id="chip-mode" class="chip">mode: -</span>
-        <span id="chip-fault" class="chip">fault: -</span>
-      </div>
-      <div id="fault-banner" class="fault-banner"></div>
-      <div class="timeline">
-        <div id="tl-setup" class="step">Setup</div>
-        <div id="tl-s1" class="step">Stage 1</div>
-        <div id="tl-s23" class="step">Stage 2-3</div>
-        <div id="tl-s4" class="step">Stage 4</div>
-        <div id="tl-done" class="step">Done</div>
-      </div>
-      <div id="adaptive-panel" class="adaptive-panel">
-        <div style="font-weight:bold; margin-bottom:6px;">Adaptive Scheduling (EdgeHydra)</div>
-        <div class="adaptive-item" style="margin-bottom:6px;">
-          View from node:
-          <select id="ad-source-select">
-            <option value="e0">e0</option>
-            <option value="e1">e1</option>
-            <option value="e2">e2</option>
-            <option value="e3">e3</option>
-          </select>
+          <text x="108" y="177" text-anchor="middle" font-size="14" font-weight="600" fill="#fbbf24" font-family="Inter, sans-serif">Edge e0</text>
+          <text x="108" y="196" text-anchor="middle" font-size="10" fill="#64748b" font-family="Inter, sans-serif">Cache + Forward</text>
+          <text x="298" y="177" text-anchor="middle" font-size="14" font-weight="600" fill="#fbbf24" font-family="Inter, sans-serif">Edge e1</text>
+          <text x="298" y="196" text-anchor="middle" font-size="10" fill="#64748b" font-family="Inter, sans-serif">Cache + Forward</text>
+          <text x="522" y="177" text-anchor="middle" font-size="14" font-weight="600" fill="#fbbf24" font-family="Inter, sans-serif">Edge e2</text>
+          <text x="522" y="196" text-anchor="middle" font-size="10" fill="#64748b" font-family="Inter, sans-serif">Cache + Forward</text>
+          <text x="712" y="177" text-anchor="middle" font-size="14" font-weight="600" fill="#fbbf24" font-family="Inter, sans-serif">Edge e3</text>
+          <text x="712" y="196" text-anchor="middle" font-size="10" fill="#64748b" font-family="Inter, sans-serif">Cache + Forward</text>
+
+          <!-- Fail marks -->
+          <text id="fail-mark-e0" x="108" y="142" text-anchor="middle" font-size="18" fill="#ef4444" visibility="hidden">✕</text>
+          <text id="fail-mark-e1" x="298" y="142" text-anchor="middle" font-size="18" fill="#ef4444" visibility="hidden">✕</text>
+          <text id="fail-mark-e2" x="522" y="142" text-anchor="middle" font-size="18" fill="#ef4444" visibility="hidden">✕</text>
+          <text id="fail-mark-e3" x="712" y="142" text-anchor="middle" font-size="18" fill="#ef4444" visibility="hidden">✕</text>
+
+          <!-- Cloud → Edge lines -->
+          <line class="flow-line cloud-line" x1="380" y1="68" x2="128" y2="146" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue)"/>
+          <line class="flow-line cloud-line" x1="400" y1="68" x2="298" y2="146" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue)"/>
+          <line class="flow-line cloud-line" x1="420" y1="68" x2="522" y2="146" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue)"/>
+          <line class="flow-line cloud-line" x1="440" y1="68" x2="710" y2="146" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+          <!-- Edge → Edge lines -->
+          <line class="flow-line edge-line" x1="188" y1="174" x2="218" y2="174" stroke="#f97316" stroke-width="1.8" marker-end="url(#arrow-orange)"/>
+          <line class="flow-line edge-line" x1="378" y1="174" x2="442" y2="174" stroke="#f97316" stroke-width="1.8" marker-end="url(#arrow-orange)"/>
+          <line class="flow-line edge-line" x1="602" y1="174" x2="632" y2="174" stroke="#f97316" stroke-width="1.8" marker-end="url(#arrow-orange)"/>
+          <line class="flow-line edge-line" x1="632" y1="196" x2="188" y2="196" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arrow-orange)"/>
+
+          <!-- Labels -->
+          <text id="lbl-c2e" x="410" y="106" text-anchor="middle" font-size="11" fill="#60a5fa" font-family="Inter, sans-serif">C2E: 0 B</text>
+          <text id="lbl-e2e" x="410" y="232" text-anchor="middle" font-size="11" fill="#fb923c" font-family="Inter, sans-serif">E2E: 0 B</text>
+
+          <!-- Stage labels -->
+          <text x="410" y="260" text-anchor="middle" font-size="11" fill="#475569" font-family="Inter, sans-serif">Stage 1: Cloud distributes coded blocks (mesbd) → Stage 2-3: Edge forward + leaderless supplement → Stage 4: Reconstruct</text>
+        </svg>
+        <!-- Stage pill + Timeline -->
+        <div id="stage-pill" class="stage-pill">Stage 1: Cloud distributing coded blocks</div>
+        <div class="timeline mt-8">
+          <div class="tl-step" id="tl-setup">⚙ Setup</div>
+          <div class="tl-step" id="tl-s1">📤 Stage 1</div>
+          <div class="tl-step" id="tl-s23">🔄 Stage 2-3</div>
+          <div class="tl-step" id="tl-s4">🧩 Stage 4</div>
+          <div class="tl-step" id="tl-done">✅ Done</div>
         </div>
-        <div class="adaptive-grid">
-          <div class="adaptive-item">Probe interval: <span id="ad-probe">-</span>s</div>
-          <div class="adaptive-item">Probe timeout: <span id="ad-timeout">-</span>s</div>
-          <div class="adaptive-item">EWMA alpha: <span id="ad-alpha">-</span></div>
-          <div class="adaptive-item">Target fanout: <span id="ad-fanout">-</span></div>
+      </div>
+
+      <!-- Live KPI panel -->
+      <div>
+        <div class="kpi-grid">
+          <div class="kpi-item">
+            <div class="kpi-val" id="live-stage">—</div>
+            <div class="kpi-label">Current Stage</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-val" id="live-recon">0/4</div>
+            <div class="kpi-label">Nodes Reconstructed</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-val" id="live-c2e" style="color:var(--accent2);">0 B</div>
+            <div class="kpi-label">Cloud → Edge</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-val" id="live-e2e" style="color:var(--orange);">0 B</div>
+            <div class="kpi-label">Edge → Edge</div>
+          </div>
         </div>
-        <div class="adaptive-item" style="margin-top:6px;">Ranked peers (real): <span id="ad-rank">-</span></div>
-        <div class="adaptive-item" style="margin-top:4px;">Source node: <span id="ad-source">-</span></div>
-        <div class="adaptive-item" style="margin-top:4px;">Peer RTT/ok: <span id="ad-peer-stats">-</span></div>
+
+        <!-- Legend -->
+        <div class="legend-row mt-8">
+          <span><span class="legend-dot" style="background:#3b82f6;"></span>Cloud→Edge (TCP)</span>
+          <span><span class="legend-dot" style="background:#f97316;"></span>Edge→Edge (forward/suppl.)</span>
+        </div>
+
+        <!-- Adaptive scheduling panel -->
+        <div id="adaptive-panel" class="adaptive-panel">
+          <div class="adaptive-title">⚡ Adaptive Scheduling (EdgeHydra)</div>
+          <div class="ap-item" style="margin-bottom:8px;">
+            View from: <select id="ad-source-select" style="min-width:70px;padding:3px 8px;font-size:11px;">
+              <option value="e0">e0</option><option value="e1">e1</option>
+              <option value="e2">e2</option><option value="e3">e3</option>
+            </select>
+          </div>
+          <div class="adaptive-params">
+            <div class="ap-item">Probe interval: <span id="ad-probe">—</span>s</div>
+            <div class="ap-item">Probe timeout: <span id="ad-timeout">—</span>s</div>
+            <div class="ap-item">EWMA α: <span id="ad-alpha">—</span></div>
+            <div class="ap-item">Fanout: <span id="ad-fanout">—</span></div>
+          </div>
+          <div class="ap-item">Ranked: <span id="ad-rank" style="color:var(--text);font-weight:500;">—</span></div>
+          <table class="peer-table mt-8">
+            <thead><tr><th>Peer</th><th>RTT (ms)</th><th>OK Rate</th><th>Health</th></tr></thead>
+            <tbody id="peer-table-body"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-    </div>
-    <div class="legend">
-      <div><span class="dot" style="background:#2f7ed8"></span>Cloud -> Edge (TCP data)</div>
-      <div><span class="dot" style="background:#d8562f"></span>Edge -> Edge (forward/supplement)</div>
-    </div>
-    <div id="stage-pill" class="stage-pill">Stage 1: Cloud distributing coded blocks</div>
 
+    <!-- Node cards grid -->
     <div class="nodes-grid">
-      <div class="node-card">
-        <div class="node-title">Edge e0</div>
-        <div class="progress-wrap"><div id="pb-e0" class="progress-fill"></div></div>
-        <div class="node-meta"><span id="cnt-e0">0 / k blocks</span><span id="st-e0" class="node-state">Receiving</span></div>
-        <div id="blk-e0" class="node-extra">blocks: []</div>
+      <div class="node-card" id="nc-e0">
+        <div class="node-card-header"><span class="node-name">Edge e0</span><span id="st-e0" class="chip chip-gray" style="font-size:10px;">Waiting</span></div>
+        <div class="progress-wrap"><div id="pb-e0" class="progress-fill" style="width:0%"></div></div>
+        <div class="node-meta"><span id="cnt-e0" class="node-count">0 / k blocks</span></div>
+        <div id="blk-e0" class="node-blocks"></div>
       </div>
-      <div class="node-card">
-        <div class="node-title">Edge e1</div>
-        <div class="progress-wrap"><div id="pb-e1" class="progress-fill"></div></div>
-        <div class="node-meta"><span id="cnt-e1">0 / k blocks</span><span id="st-e1" class="node-state">Receiving</span></div>
-        <div id="blk-e1" class="node-extra">blocks: []</div>
+      <div class="node-card" id="nc-e1">
+        <div class="node-card-header"><span class="node-name">Edge e1</span><span id="st-e1" class="chip chip-gray" style="font-size:10px;">Waiting</span></div>
+        <div class="progress-wrap"><div id="pb-e1" class="progress-fill" style="width:0%"></div></div>
+        <div class="node-meta"><span id="cnt-e1" class="node-count">0 / k blocks</span></div>
+        <div id="blk-e1" class="node-blocks"></div>
       </div>
-      <div class="node-card">
-        <div class="node-title">Edge e2</div>
-        <div class="progress-wrap"><div id="pb-e2" class="progress-fill"></div></div>
-        <div class="node-meta"><span id="cnt-e2">0 / k blocks</span><span id="st-e2" class="node-state">Receiving</span></div>
-        <div id="blk-e2" class="node-extra">blocks: []</div>
+      <div class="node-card" id="nc-e2">
+        <div class="node-card-header"><span class="node-name">Edge e2</span><span id="st-e2" class="chip chip-gray" style="font-size:10px;">Waiting</span></div>
+        <div class="progress-wrap"><div id="pb-e2" class="progress-fill" style="width:0%"></div></div>
+        <div class="node-meta"><span id="cnt-e2" class="node-count">0 / k blocks</span></div>
+        <div id="blk-e2" class="node-blocks"></div>
       </div>
-      <div class="node-card">
-        <div class="node-title">Edge e3</div>
-        <div class="progress-wrap"><div id="pb-e3" class="progress-fill"></div></div>
-        <div class="node-meta"><span id="cnt-e3">0 / k blocks</span><span id="st-e3" class="node-state">Receiving</span></div>
-        <div id="blk-e3" class="node-extra">blocks: []</div>
+      <div class="node-card" id="nc-e3">
+        <div class="node-card-header"><span class="node-name">Edge e3</span><span id="st-e3" class="chip chip-gray" style="font-size:10px;">Waiting</span></div>
+        <div class="progress-wrap"><div id="pb-e3" class="progress-fill" style="width:0%"></div></div>
+        <div class="node-meta"><span id="cnt-e3" class="node-count">0 / k blocks</span></div>
+        <div id="blk-e3" class="node-blocks"></div>
       </div>
     </div>
   </div>
 
-  <div id="status">Ready.</div>
-
+  <!-- DB / WAL replication panel -->
   <div class="card">
-    <h3>Event Timeline</h3>
-    <div id="events" class="event-card">No events yet.</div>
-  </div>
-
-  <div class="card">
-    <h3>Kết quả lượt chạy gần nhất</h3>
-    <div class="kpi">
-      <div><div class="label">Scenario</div><div class="value" id="k-scenario">-</div></div>
-      <div><div class="label">Distribution Time (s)</div><div class="value" id="k-time">-</div></div>
-      <div><div class="label">Distribution Cost</div><div class="value" id="k-cost">-</div></div>
-      <div><div class="label">Cloud -> Edge (bytes)</div><div class="value" id="k-c2e">-</div></div>
-      <div><div class="label">Edge -> Edge (bytes)</div><div class="value" id="k-e2e">-</div></div>
+    <div class="card-title"><span class="icon">💾</span> Distributed Database Sync (WAL Replication)</div>
+    <div class="muted" style="margin-bottom:12px;">Eventual Consistency demo: Cloud distributes WAL transaction log. When edges reconstruct, data is applied to a local SQLite replica.</div>
+    <div class="db-grid">
+      <div class="db-card">
+        <div class="db-title">e0 Replica</div>
+        <table class="db-table"><thead><tr><th>ID</th><th>Temp</th><th>Location</th></tr></thead>
+        <tbody id="db-e0"><tr><td colspan="3" style="color:var(--text3);font-style:italic;">Waiting for WAL...</td></tr></tbody></table>
+        <div class="db-count" id="db-cnt-e0"></div>
+      </div>
+      <div class="db-card">
+        <div class="db-title">e1 Replica</div>
+        <table class="db-table"><thead><tr><th>ID</th><th>Temp</th><th>Location</th></tr></thead>
+        <tbody id="db-e1"><tr><td colspan="3" style="color:var(--text3);font-style:italic;">Waiting for WAL...</td></tr></tbody></table>
+        <div class="db-count" id="db-cnt-e1"></div>
+      </div>
+      <div class="db-card">
+        <div class="db-title">e2 Replica</div>
+        <table class="db-table"><thead><tr><th>ID</th><th>Temp</th><th>Location</th></tr></thead>
+        <tbody id="db-e2"><tr><td colspan="3" style="color:var(--text3);font-style:italic;">Waiting for WAL...</td></tr></tbody></table>
+        <div class="db-count" id="db-cnt-e2"></div>
+      </div>
+      <div class="db-card">
+        <div class="db-title">e3 Replica</div>
+        <table class="db-table"><thead><tr><th>ID</th><th>Temp</th><th>Location</th></tr></thead>
+        <tbody id="db-e3"><tr><td colspan="3" style="color:var(--text3);font-style:italic;">Waiting for WAL...</td></tr></tbody></table>
+        <div class="db-count" id="db-cnt-e3"></div>
+      </div>
     </div>
   </div>
 
-  <h3>Log cloud (tail)</h3>
-  <div id="logs">No run yet.</div>
+  <!-- Events + Results -->
+  <div class="panel-row">
+    <div class="card">
+      <div class="card-title"><span class="icon">📋</span> Event Timeline</div>
+      <div class="events-list" id="events"><div class="muted">No events yet.</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">📈</span> Last Run Results</div>
+      <div class="results-grid">
+        <div class="res-item"><div class="res-label">Scenario</div><div class="res-value" id="k-scenario" style="font-size:13px;">—</div></div>
+        <div class="res-item"><div class="res-label">Time (s)</div><div class="res-value" id="k-time">—</div></div>
+        <div class="res-item"><div class="res-label">Cost (units)</div><div class="res-value" id="k-cost">—</div></div>
+        <div class="res-item"><div class="res-label">C2E (bytes)</div><div class="res-value" id="k-c2e" style="font-size:14px;">—</div></div>
+        <div class="res-item"><div class="res-label">E2E (bytes)</div><div class="res-value" id="k-e2e" style="font-size:14px;">—</div></div>
+      </div>
+    </div>
+  </div>
 
-  <script>
-    const statusEl = document.getElementById("status");
-    const logsEl = document.getElementById("logs");
-    const kScenario = document.getElementById("k-scenario");
-    const kTime = document.getElementById("k-time");
-    const kCost = document.getElementById("k-cost");
-    const kC2E = document.getElementById("k-c2e");
-    const kE2E = document.getElementById("k-e2e");
-    const liveStageEl = document.getElementById("live-stage");
-    const liveReconEl = document.getElementById("live-recon");
-    const liveC2EEl = document.getElementById("live-c2e");
-    const liveE2EEl = document.getElementById("live-e2e");
-    const chipMode = document.getElementById("chip-mode");
-    const chipFault = document.getElementById("chip-fault");
-    const lblC2E = document.getElementById("lbl-c2e");
-    const lblE2E = document.getElementById("lbl-e2e");
-    const eventsEl = document.getElementById("events");
-    const faultBanner = document.getElementById("fault-banner");
-    const failMarks = {
-      e0: document.getElementById("fail-mark-e0"),
-      e1: document.getElementById("fail-mark-e1"),
-      e2: document.getElementById("fail-mark-e2"),
-      e3: document.getElementById("fail-mark-e3"),
-    };
-    const stagePill = document.getElementById("stage-pill");
-    const adaptivePanel = document.getElementById("adaptive-panel");
-    const adProbe = document.getElementById("ad-probe");
-    const adTimeout = document.getElementById("ad-timeout");
-    const adAlpha = document.getElementById("ad-alpha");
-    const adFanout = document.getElementById("ad-fanout");
-    const adRank = document.getElementById("ad-rank");
-    const adSource = document.getElementById("ad-source");
-    const adPeerStats = document.getElementById("ad-peer-stats");
-    const adSourceSelect = document.getElementById("ad-source-select");
-    const cloudLines = Array.from(document.querySelectorAll(".cloud-line"));
-    const edgeLines = Array.from(document.querySelectorAll(".edge-line"));
-    const nodeCloud = document.getElementById("node-cloud");
-    const edgeNodes = ["node-e0", "node-e1", "node-e2", "node-e3"].map(id => document.getElementById(id));
-    const nodeIds = ["e0", "e1", "e2", "e3"];
-    function fmtBytes(n) {
-      const x = Number(n || 0);
-      if (x > 1024 * 1024) return `${(x / 1024 / 1024).toFixed(2)} MiB`;
-      if (x > 1024) return `${(x / 1024).toFixed(1)} KiB`;
-      return `${x} B`;
+  <!-- Cloud log -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🖥️</span> Cloud Log (tail)</div>
+    <div class="log-box" id="logs">No run yet.</div>
+  </div>
+</div><!-- /page-demo -->
+
+
+<!-- ══════════════════ TAB: METRICS ════════════════════════════════ -->
+<div class="page" id="page-metrics">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div>
+      <h2 style="font-size:18px;font-weight:700;">Metrics & Comparison</h2>
+      <div class="muted">EdgeHydra vs EdgeDis — 3-run repeated experiment summary</div>
+    </div>
+    <button class="btn btn-ghost" onclick="loadMetrics()">↻ Reload Data</button>
+  </div>
+
+  <div id="metrics-loading" class="loading-overlay">Loading metrics data…</div>
+  <div id="metrics-content" style="display:none;">
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Distribution Time by Scenario</div>
+        <div class="chart-sub">Normal, Slow Servers, Failed Servers (1 MiB file) — lower is better</div>
+        <div class="legend-row">
+          <span><span class="legend-dot" style="background:#3b82f6;"></span>EdgeHydra</span>
+          <span><span class="legend-dot" style="background:#f97316;"></span>EdgeDis</span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-time-scenario"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Distribution Cost by Scenario</div>
+        <div class="chart-sub">Cost = C2E_MiB × 1 + E2E_MiB × 1/9 — lower is better</div>
+        <div class="legend-row">
+          <span><span class="legend-dot" style="background:#3b82f6;"></span>EdgeHydra</span>
+          <span><span class="legend-dot" style="background:#f97316;"></span>EdgeDis</span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-cost-scenario"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Distribution Time vs File Size</div>
+        <div class="chart-sub">variable_file_sizes scenario — scalability comparison</div>
+        <div class="legend-row">
+          <span><span class="legend-dot" style="background:#3b82f6;"></span>EdgeHydra</span>
+          <span><span class="legend-dot" style="background:#f97316;"></span>EdgeDis</span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-time-size"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Distribution Cost vs File Size</div>
+        <div class="chart-sub">variable_file_sizes scenario — cost efficiency at scale</div>
+        <div class="legend-row">
+          <span><span class="legend-dot" style="background:#3b82f6;"></span>EdgeHydra</span>
+          <span><span class="legend-dot" style="background:#f97316;"></span>EdgeDis</span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-cost-size"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Summary table -->
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title"><span class="icon">📋</span> Summary Statistics (3 runs, mean ± std)</div>
+      <div style="overflow-x:auto;">
+        <table class="summary-table" id="summary-table">
+          <thead>
+            <tr>
+              <th>Scenario</th><th>File (MiB)</th>
+              <th>EH Time (s)</th><th>EH ±σ</th>
+              <th>ED Time (s)</th><th>ED ±σ</th>
+              <th>Speedup</th>
+              <th>EH Cost</th><th>ED Cost</th>
+              <th>Cost Δ</th>
+            </tr>
+          </thead>
+          <tbody id="summary-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Raw metrics -->
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title"><span class="icon">🗃️</span> Raw Repeated Metrics (all runs)</div>
+      <div style="overflow-x:auto; max-height:350px;">
+        <table class="summary-table" id="raw-table">
+          <thead>
+            <tr>
+              <th>Scenario</th><th>Method</th><th>File (MiB)</th>
+              <th>Time (s)</th><th>C2E (MiB)</th><th>E2E (MiB)</th><th>Cost</th>
+            </tr>
+          </thead>
+          <tbody id="raw-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- /metrics-content -->
+</div><!-- /page-metrics -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  Utility helpers
+// ═══════════════════════════════════════════════════════════
+function fmtBytes(n) {
+  const x = Number(n || 0);
+  if (x > 1024*1024) return `${(x/1024/1024).toFixed(2)} MiB`;
+  if (x > 1024) return `${(x/1024).toFixed(1)} KiB`;
+  return `${x} B`;
+}
+function fmtNum(v, decimals=3) {
+  const n = parseFloat(v);
+  return isNaN(n) ? '—' : n.toFixed(decimals);
+}
+function tsNow() {
+  return new Date().toLocaleTimeString('en-GB', {hour12:false});
+}
+// ═══════════════════════════════════════════════════════════
+//  Tab switching
+// ═══════════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('page-' + name).classList.add('active');
+  if (name === 'metrics') loadMetrics();
+}
+// ═══════════════════════════════════════════════════════════
+//  Demo page state
+// ═══════════════════════════════════════════════════════════
+const nodeIds = ['e0','e1','e2','e3'];
+let kTarget = 3;
+let currentJobId = null;
+let pollTimer = null;
+let eventItems = [];
+let prevNodeState = {};
+let prevReceivedBlocks = {};
+let prevStageLabel = '';
+let prevRecon = -1;
+let selectedAdaptiveSource = 'e0';
+
+const failMarks = { e0: document.getElementById('fail-mark-e0'), e1: document.getElementById('fail-mark-e1'), e2: document.getElementById('fail-mark-e2'), e3: document.getElementById('fail-mark-e3') };
+const cloudLines = Array.from(document.querySelectorAll('.cloud-line'));
+const edgeLines = Array.from(document.querySelectorAll('.edge-line'));
+const adaptivePanel = document.getElementById('adaptive-panel');
+const adSourceSelect = document.getElementById('ad-source-select');
+
+function setStatus(msg, state='') {
+  document.getElementById('status-text').textContent = msg;
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot' + (state ? ' ' + state : '');
+}
+function pushEvent(kind, msg) {
+  const cls = kind === 'fail' ? 'ev-fail' : (kind === 'warn' ? 'ev-warn' : 'ev-ok');
+  const label = kind === 'fail' ? 'FAIL' : (kind === 'warn' ? 'WARN' : 'OK');
+  eventItems.unshift({ ts: tsNow(), cls, label, msg });
+  eventItems = eventItems.slice(0, 22);
+  const el = document.getElementById('events');
+  el.innerHTML = eventItems.map(e =>
+    `<div class="event-item"><span class="event-ts">${e.ts}</span><span class="ev-badge ${e.cls}">${e.label}</span><span>${e.msg}</span></div>`
+  ).join('');
+}
+function setTimeline(active, doneList=[]) {
+  ['tl-setup','tl-s1','tl-s23','tl-s4','tl-done'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('active','done');
+    if (doneList.includes(id)) el.classList.add('done');
+    if (id === active) el.classList.add('active');
+  });
+}
+function applyStage(idx) {
+  cloudLines.forEach(l => l.classList.remove('active','active-orange'));
+  edgeLines.forEach(l => l.classList.remove('active','active-orange'));
+  if (idx === 0) {
+    cloudLines.forEach(l => l.classList.add('active'));
+  } else if (idx === 1) {
+    edgeLines.forEach(l => l.classList.add('active-orange'));
+  }
+}
+function resetUI() {
+  kTarget = document.getElementById('method').value === 'edgehydra' ? 3 : 4;
+  prevNodeState = {}; prevReceivedBlocks = {}; prevStageLabel = ''; prevRecon = -1;
+  eventItems = []; document.getElementById('events').innerHTML = '<div class="muted">No events yet.</div>';
+  document.getElementById('fault-banner').className = 'fault-banner';
+  adaptivePanel.classList.remove('show');
+  Object.values(failMarks).forEach(m => m.setAttribute('visibility','hidden'));
+  nodeIds.forEach(id => {
+    document.getElementById('pb-'+id).style.width = '0%';
+    document.getElementById('pb-'+id).className = 'progress-fill';
+    document.getElementById('cnt-'+id).textContent = `0 / ${kTarget} blocks`;
+    document.getElementById('st-'+id).className = 'chip chip-gray';
+    document.getElementById('st-'+id).style.fontSize = '10px';
+    document.getElementById('st-'+id).textContent = 'Waiting';
+    document.getElementById('blk-'+id).innerHTML = '';
+    document.getElementById('nc-'+id).className = 'node-card';
+    document.getElementById('db-'+id).innerHTML = '<tr><td colspan="3" style="color:var(--text3);font-style:italic;">Waiting for WAL...</td></tr>';
+    document.getElementById('db-cnt-'+id).textContent = '';
+  });
+  cloudLines.forEach(l => { l.classList.remove('active','active-orange'); l.style.opacity=''; });
+  edgeLines.forEach(l => { l.classList.remove('active','active-orange'); l.style.opacity=''; });
+  document.getElementById('lbl-c2e').textContent = 'C2E: 0 B';
+  document.getElementById('lbl-e2e').textContent = 'E2E: 0 B';
+  document.getElementById('live-recon').textContent = `0/${kTarget}`;
+  document.getElementById('live-c2e').textContent = '0 B';
+  document.getElementById('live-e2e').textContent = '0 B';
+  document.getElementById('live-stage').textContent = '—';
+  document.getElementById('stage-pill').textContent = 'Stage 1: Cloud distributing coded blocks';
+  setTimeline('tl-setup',[]);
+  applyStage(0);
+}
+function applyLiveToNodes(live) {
+  if (!live || !live.nodes) return;
+  nodeIds.forEach(id => {
+    const n = live.nodes.find(x => x.id === id);
+    if (!n) return;
+    const count = Number(n.k_reached || 0);
+    const total = Number(n.k_target || kTarget);
+    const pct = Math.max(0, Math.min(100, Math.round(count/total*100)));
+
+    // Progress bar
+    const pb = document.getElementById('pb-'+id);
+    pb.style.width = pct + '%';
+    pb.className = 'progress-fill' + (count >= total ? ' done' : '');
+
+    // Count
+    document.getElementById('cnt-'+id).textContent = `${Math.min(count,total)} / ${total} blocks`;
+
+    // Block badges
+    const blocks = Array.isArray(n.received_block_ids) ? n.received_block_ids.map(Number).sort((a,b)=>a-b) : [];
+    const prevBlocks = prevReceivedBlocks[id] || [];
+    blocks.filter(b => !prevBlocks.includes(b)).forEach(b => pushEvent('ok', `${id} received block [${b}]`));
+    prevReceivedBlocks[id] = blocks;
+    document.getElementById('blk-'+id).innerHTML = blocks.length
+      ? blocks.map(b => `<span class="block-badge">${b}</span>`).join('')
+      : '';
+
+    // Status chip + node card class
+    const nc = document.getElementById('nc-'+id);
+    const st = document.getElementById('st-'+id);
+    let chipCls, chipTxt, ncCls = 'node-card';
+    if (n.crashed || n.fault_state === 'failed_injected' || String(n.status||'').toLowerCase().includes('exited')) {
+      chipCls = 'chip chip-red'; chipTxt = '✕ Failed'; ncCls += ' failed';
+      if (failMarks[id]) failMarks[id].setAttribute('visibility','visible');
+    } else if (n.reconstructed) {
+      chipCls = 'chip chip-green'; chipTxt = '✓ Reconstructed'; ncCls += ' reconstructed';
+    } else if (n.fault_state === 'slow_injected') {
+      chipCls = 'chip chip-yellow'; chipTxt = '⚡ Slow';  ncCls += ' slow';
+    } else if (String(n.status||'').toLowerCase().includes('running')) {
+      chipCls = 'chip chip-blue'; chipTxt = '↓ Receiving';
+    } else {
+      chipCls = 'chip chip-gray'; chipTxt = n.status || 'unknown';
     }
-
-    function setTimeline(active, doneList=[]) {
-      ["tl-setup","tl-s1","tl-s23","tl-s4","tl-done"].forEach(id => {
-        const el = document.getElementById(id);
-        el.classList.remove("active", "done");
-        if (doneList.includes(id)) el.classList.add("done");
-        if (id === active) el.classList.add("active");
-      });
+    st.className = chipCls; st.style.fontSize = '10px'; st.textContent = chipTxt;
+    nc.className = ncCls;
+    const nowState = chipTxt;
+    if (prevNodeState[id] && prevNodeState[id] !== nowState) {
+      if (nowState.includes('Failed')) pushEvent('fail', `${id} failed/crashed`);
+      else if (nowState.includes('Reconstructed')) pushEvent('ok', `${id} reconstructed (${total} blocks sufficient)`);
+      else if (nowState.includes('Slow')) pushEvent('warn', `${id} under slow/drop fault`);
     }
+    prevNodeState[id] = nowState;
 
-    let kTarget = 3;
-    let nodeCounts = { e0: 0, e1: 0, e2: 0, e3: 0 };
-    let currentJobId = null;
-    let pollTimer = null;
-    let eventItems = [];
-    let prevNodeState = {};
-    let prevReceivedBlocks = {};
-    let prevStageLabel = "";
-    let prevRecon = -1;
-    let selectedAdaptiveSource = "e0";
-
-    function tsNow() {
-      const d = new Date();
-      return d.toLocaleTimeString("en-GB", { hour12: false });
+    // DB state
+    if (n.db_state && n.db_state.latest_records) {
+      const recs = n.db_state.latest_records;
+      const tbody = document.getElementById('db-'+id);
+      tbody.innerHTML = recs.map(r =>
+        `<tr><td>${r.id}</td><td class="temp">${r.temp}°C</td><td>${r.location}</td></tr>`
+      ).join('');
+      document.getElementById('db-cnt-'+id).textContent = `Total rows: ${n.db_state.total_rows}`;
     }
+  });
+}
+function applyLiveStage(live, phase) {
+  const stage = String(live?.stage_label || '');
+  const stagePill = document.getElementById('stage-pill');
+  if (phase === 'done') {
+    applyStage(2); stagePill.textContent = 'Finalized';
+    setTimeline('tl-done',['tl-setup','tl-s1','tl-s23','tl-s4']);
+  } else if (phase === 'error') {
+    applyStage(0); stagePill.textContent = 'Error — check logs';
+    setTimeline('tl-done',['tl-setup','tl-s1','tl-s23']);
+  } else if (stage.includes('Stage 4')) {
+    applyStage(2); setTimeline('tl-s4',['tl-setup','tl-s1','tl-s23']);
+    stagePill.textContent = 'Stage 4: Nodes reconstructing…';
+  } else if (stage.includes('Stage 1-3') || phase === 'run_cloud') {
+    applyStage(0); setTimeline('tl-s1',['tl-setup']);
+    stagePill.textContent = 'Stage 1: Cloud distributing coded blocks…';
+  } else if (phase === 'compose_up' || phase === 'prepare') {
+    applyStage(0); setTimeline('tl-setup',[]);
+    stagePill.textContent = 'Setup: starting containers…';
+  } else if (phase === 'finalizing') {
+    applyStage(1); setTimeline('tl-s23',['tl-setup','tl-s1']);
+    stagePill.textContent = 'Stage 2-3: Edge forwarding + leaderless supplement…';
+  }
+  if (prevStageLabel && prevStageLabel !== stagePill.textContent) {
+    pushEvent('warn', `Stage → ${stagePill.textContent}`);
+  }
+  prevStageLabel = stagePill.textContent;
+}
+async function pollStatusOnce() {
+  if (!currentJobId) return;
+  try {
+    const res = await fetch(`/api/demo/status/${currentJobId}`);
+    const data = await res.json();
+    const live = data.live || {};
+    const adaptive = live.adaptive || {};
+    const reconstructed = Number(live.reconstructed_count || data.reconstructed_count || 0);
+    const expectedTarget = Number(live.expected_target || data.expected_target || kTarget);
+    const completionReason = String(live.completion_reason || data.completion_reason || '');
 
-    function pushEvent(kind, msg) {
-      const cls = kind === "fail" ? "fail" : (kind === "warn" ? "warn" : "ok");
-      eventItems.unshift({ ts: tsNow(), cls, msg });
-      eventItems = eventItems.slice(0, 18);
-      eventsEl.innerHTML = eventItems.map(e =>
-        `<div class="event-item"><span class="event-ts">${e.ts}</span><span class="event-badge ${e.cls}">${e.cls.toUpperCase()}</span>${e.msg}</div>`
-      ).join("");
-    }
+    applyLiveStage(live, data.phase);
+    applyLiveToNodes(live);
 
-    function setStatus(msg) {
-      statusEl.textContent = msg;
-    }
+    // Status bar
+    const phaseStr = {
+      prepare:'Preparing...', compose_down:'Stopping old containers...', compose_up:'Starting containers...',
+      run_cloud:'Cloud distributing blocks...', aggregate:'Aggregating metrics...',
+      finalizing:'Finalizing edge reconstruction...', done:'Completed.', error:'Error.'
+    }[data.phase] || data.phase;
+    setStatus(`${phaseStr} | elapsed ${data.elapsed_s}s`, data.phase === 'done' ? 'done' : (data.phase === 'error' ? 'error' : 'running'));
 
-    function adaptivePeerClass(p) {
-      const okRate = Number(p?.ok_rate || 0);
-      const rtt = Number(p?.ewma_rtt_ms || 0);
-      if (okRate < 0.5) return "adaptive-peer-bad";
-      if (rtt > 50) return "adaptive-peer-warn";
-      return "adaptive-peer-good";
-    }
+    document.getElementById('live-stage').textContent = live.stage_label || '—';
+    document.getElementById('live-recon').textContent = `${reconstructed}/${expectedTarget}`;
+    document.getElementById('live-c2e').textContent = fmtBytes(live.cloud_bytes || 0);
+    document.getElementById('live-e2e').textContent = fmtBytes(live.edge_bytes || 0);
+    document.getElementById('lbl-c2e').textContent = `C2E: ${fmtBytes(live.cloud_bytes || 0)}`;
+    document.getElementById('lbl-e2e').textContent = `E2E: ${fmtBytes(live.edge_bytes || 0)}`;
 
-    function renderNodeProgress() {
-      nodeIds.forEach((id) => {
-        const c = nodeCounts[id];
-        const pct = Math.max(0, Math.min(100, Math.round((c / kTarget) * 100)));
-        const pb = document.getElementById(`pb-${id}`);
-        const cnt = document.getElementById(`cnt-${id}`);
-        pb.style.width = `${pct}%`;
-        cnt.textContent = `${Math.min(c, kTarget)} / ${kTarget} blocks`;
-        pb.style.background = c >= kTarget ? "#18a64a" : "#2f7ed8";
-      });
-    }
+    // Animate line intensities
+    const c2eMiB = (live.cloud_bytes || 0) / (1024*1024);
+    const e2eMiB = (live.edge_bytes || 0) / (1024*1024);
+    cloudLines.forEach(l => l.style.opacity = String(Math.min(1, 0.2 + c2eMiB * 0.5)));
+    edgeLines.forEach(l => l.style.opacity = String(Math.min(1, 0.2 + e2eMiB * 0.5)));
 
-    function resetNodeProgress() {
-      nodeCounts = { e0: 0, e1: 0, e2: 0, e3: 0 };
-      nodeIds.forEach((id) => {
-        const st = document.getElementById(`st-${id}`);
-        st.textContent = "Receiving";
-        st.classList.remove("ok", "fail", "warn");
-      });
-      renderNodeProgress();
-      prevNodeState = {};
-      prevReceivedBlocks = {};
-      prevStageLabel = "";
-      prevRecon = -1;
-      eventItems = [];
-      eventsEl.textContent = "No events yet.";
-      faultBanner.className = "fault-banner";
-      faultBanner.textContent = "";
-      adaptivePanel.classList.remove("show");
-      selectedAdaptiveSource = adSourceSelect.value || "e0";
-      Object.values(failMarks).forEach(el => el.setAttribute("visibility", "hidden"));
-    }
-
-    function clearAnimationState() {
-      cloudLines.forEach(l => l.classList.remove("active", "active-orange"));
-      edgeLines.forEach(l => l.classList.remove("active", "active-orange"));
-      nodeCloud.classList.remove("active");
-      edgeNodes.forEach(n => n.classList.remove("active"));
-    }
-
-    function applyStage(stageIdx) {
-      clearAnimationState();
-      if (stageIdx === 0) {
-        stagePill.textContent = "Stage 1: Cloud distributing coded blocks";
-        nodeCloud.classList.add("active");
-        cloudLines.forEach(l => l.classList.add("active"));
-      } else if (stageIdx === 1) {
-        stagePill.textContent = "Stage 2-3: Edge forwarding + leaderless supplement";
-        edgeNodes.forEach(n => n.classList.add("active"));
-        edgeLines.forEach(l => l.classList.add("active-orange"));
-      } else {
-        stagePill.textContent = "Stage 4: Reconstruction + stop redundant transfer";
-        edgeNodes.forEach(n => n.classList.add("active"));
+    // Adaptive panel
+    if (adaptive.enabled) {
+      adaptivePanel.classList.add('show');
+      const allSources = adaptive.all_sources || {};
+      const snap = allSources[selectedAdaptiveSource] || null;
+      if (snap) {
+        document.getElementById('ad-probe').textContent = snap.probe_interval_s ?? '—';
+        document.getElementById('ad-timeout').textContent = snap.probe_timeout_s ?? '—';
+        document.getElementById('ad-alpha').textContent = snap.ewma_alpha ?? '—';
+        document.getElementById('ad-fanout').textContent = adaptive.target_fanout ?? '—';
+        document.getElementById('ad-rank').textContent = (snap.ranked_peers || []).join(' > ') || '—';
+        const tbody = document.getElementById('peer-table-body');
+        tbody.innerHTML = (snap.peers || []).map(p => {
+          const rtt = Number(p.ewma_rtt_ms||0).toFixed(1);
+          const ok = Math.round(Number(p.ok_rate||0)*100);
+          const cls = ok < 50 ? 'peer-bad' : (Number(p.ewma_rtt_ms||0) > 50 ? 'peer-warn' : 'peer-good');
+          return `<tr><td>${p.peer_id}</td><td class="${cls}">${rtt}</td><td class="${cls}">${ok}%</td><td class="${cls}">${ok>=80?'✓ Good':(ok>=50?'⚠ Slow':'✕ Poor')}</td></tr>`;
+        }).join('');
       }
+    } else {
+      adaptivePanel.classList.remove('show');
     }
 
-    applyStage(0);
-    resetNodeProgress();
-    
-    function applyLiveToNodes(live) {
-      if (!live || !live.nodes) return;
-      const maxTraffic = Math.max(1, ...live.nodes.map(x => Number(x.traffic_bytes || 0)));
-      nodeIds.forEach((id) => {
-        const n = live.nodes.find(x => x.id === id);
-        if (!n) return;
-        const st = document.getElementById(`st-${id}`);
-        const box = document.getElementById(`node-${id}`);
-        const blk = document.getElementById(`blk-${id}`);
-        nodeCounts[id] = Number(n.k_reached || 0);
-        const blocks = Array.isArray(n.received_block_ids) ? n.received_block_ids.map(x => Number(x)) : [];
-        blocks.sort((a, b) => a - b);
-        blk.textContent = `blocks: [${blocks.join(", ")}]`;
-        blk.title = `Block IDs at ${id}: [${blocks.join(", ")}]`;
-        const prevBlocks = Array.isArray(prevReceivedBlocks[id]) ? prevReceivedBlocks[id] : [];
-        const newBlocks = blocks.filter(b => !prevBlocks.includes(b));
-        newBlocks.forEach(b => pushEvent("ok", `${id} received block ${b}`));
-        prevReceivedBlocks[id] = blocks;
-        if (n.fault_state === "failed_injected" || String(n.status || "").toLowerCase().includes("exited")) {
-          st.textContent = `Failed (${n.status})`;
-          st.classList.remove("ok", "warn");
-          st.classList.add("fail");
-          box.classList.remove("running", "reconstructed");
-          box.classList.add("failed");
-          if (failMarks[id]) {
-            failMarks[id].setAttribute("visibility", "visible");
-          }
-        } else if (n.reconstructed) {
-          st.textContent = `Reconstructed (${n.status})`;
-          st.classList.remove("fail", "warn");
-          st.classList.add("ok");
-          box.classList.remove("running", "failed");
-          box.classList.add("reconstructed");
-        } else if (n.fault_state === "slow_injected") {
-          st.textContent = `Slow (${n.status})`;
-          st.classList.remove("ok", "fail");
-          st.classList.add("warn");
-          box.classList.remove("reconstructed", "failed");
-          box.classList.add("running");
-        } else if (String(n.status || "").toLowerCase().includes("running")) {
-          st.textContent = `Receiving (${n.status})`;
-          st.classList.remove("ok", "fail");
-          st.classList.add("warn");
-          box.classList.remove("reconstructed", "failed");
-          box.classList.add("running");
-        } else {
-          st.textContent = n.status || "unknown";
-          st.classList.remove("ok", "fail");
-          st.classList.add("warn");
-          box.classList.remove("reconstructed", "failed");
-          box.classList.add("running");
-        }
-        const pb = document.getElementById(`pb-${id}`);
-        const trafficRatio = Math.max(0.15, Number(n.traffic_bytes || 0) / maxTraffic);
-        pb.style.opacity = String(trafficRatio.toFixed(2));
-
-        const nowState = st.textContent;
-        if (prevNodeState[id] && prevNodeState[id] !== nowState) {
-          if (nowState.startsWith("Failed")) {
-            pushEvent("fail", `${id} failed (${n.status})`);
-          } else if (nowState.startsWith("Reconstructed")) {
-            pushEvent("ok", `${id} reached k blocks and reconstructed`);
-          } else if (nowState.startsWith("Slow")) {
-            pushEvent("warn", `${id} under slow profile (delay/drop active)`);
-          } else if (nowState.startsWith("Receiving")) {
-            pushEvent("warn", `${id} resumed receiving`);
-          }
-        }
-        prevNodeState[id] = nowState;
-      });
-      renderNodeProgress();
+    if (prevRecon >= 0 && reconstructed > prevRecon) {
+      pushEvent('ok', `Reconstructed: ${reconstructed}/${expectedTarget} nodes`);
     }
+    prevRecon = reconstructed;
 
-    function applyLiveStage(live, phase) {
-      const p = String(phase || "");
-      const stage = String(live?.stage_label || "");
-      if (p === "done") {
-        applyStage(2);
-        stagePill.textContent = "Finalized";
-        setTimeline("tl-done", ["tl-setup","tl-s1","tl-s23","tl-s4"]);
-      } else if (p === "error") {
-        clearAnimationState();
-        stagePill.textContent = "Failed: check logs/status";
-        setTimeline("tl-done", ["tl-setup","tl-s1","tl-s23"]);
-      } else if (stage.includes("Stage 4")) {
-        applyStage(2);
-        setTimeline("tl-s4", ["tl-setup","tl-s1","tl-s23"]);
-      } else if (stage.includes("Stage 1-3")) {
-        applyStage(1);
-        setTimeline("tl-s23", ["tl-setup","tl-s1"]);
-      } else if (p === "compose_up" || p === "run_cloud") {
-        applyStage(0);
-        setTimeline("tl-s1", ["tl-setup"]);
-      } else {
-        applyStage(0);
-        setTimeline("tl-setup", []);
+    if (data.phase === 'done') {
+      const stagePill = document.getElementById('stage-pill');
+      if (completionReason === 'target_reached') {
+        stagePill.textContent = `✅ Completed: ${reconstructed}/${expectedTarget} nodes reconstructed`;
+      } else if (completionReason === 'timeout') {
+        stagePill.textContent = `⚠ Partial: ${reconstructed}/${expectedTarget} — timeout reached`;
       }
-      if (prevStageLabel && prevStageLabel !== stagePill.textContent) {
-        pushEvent("warn", `Stage changed: ${stagePill.textContent}`);
-      }
-      prevStageLabel = stagePill.textContent;
+      const r = data.result || {};
+      document.getElementById('k-scenario').textContent = (data.scenario || '—').slice(0,32);
+      document.getElementById('k-time').textContent = fmtNum(r.distribution_time_s, 3) + 's';
+      document.getElementById('k-cost').textContent = fmtNum(r.distribution_cost_units, 4);
+      document.getElementById('k-c2e').textContent = fmtBytes(r.cloud_to_edge_bytes);
+      document.getElementById('k-e2e').textContent = fmtBytes(r.edge_to_edge_bytes);
+      document.getElementById('logs').textContent = data.cloud_log_tail || '(empty)';
+      document.getElementById('btn-run').disabled = false;
+      clearInterval(pollTimer); pollTimer = null;
     }
-
-    async function pollStatusOnce() {
-      if (!currentJobId) return;
-      const res = await fetch(`/api/demo/status/${currentJobId}`);
-      const data = await res.json();
-      const live = data.live || {};
-      const adaptive = live.adaptive || {};
-      const reconstructed = Number(live.reconstructed_count || data.reconstructed_count || 0);
-      const expectedTarget = Number(live.expected_target || data.expected_target || 4);
-      const completionReason = String(live.completion_reason || data.completion_reason || "");
-      applyLiveStage(live, data.phase);
-      applyLiveToNodes(live);
-      setStatus(`Phase: ${data.phase} | ${live.stage_label || "-"} | elapsed ${data.elapsed_s}s`);
-      liveStageEl.textContent = live.stage_label || "-";
-      liveReconEl.textContent = `${reconstructed}/${expectedTarget}`;
-      liveC2EEl.textContent = fmtBytes(live.cloud_bytes || 0);
-      const e2e = Number(live.edge_bytes || 0);
-      liveE2EEl.textContent = fmtBytes(e2e);
-      lblC2E.textContent = `C2E: ${fmtBytes(live.cloud_bytes || 0)}`;
-      lblE2E.textContent = `E2E: ${fmtBytes(e2e)}`;
-      const cloudIntensity = Math.min(1, Number(live.cloud_bytes || 0) / (1024 * 1024));
-      const edgeIntensity = Math.min(1, e2e / (1024 * 1024));
-      cloudLines.forEach(l => l.style.opacity = String(0.25 + cloudIntensity * 0.75));
-      edgeLines.forEach(l => l.style.opacity = String(0.25 + edgeIntensity * 0.75));
-      if (adaptive.enabled) {
-        adaptivePanel.classList.add("show");
-        const allSources = adaptive.all_sources || {};
-        const selectedSnap = allSources[selectedAdaptiveSource] || null;
-        if (!selectedSnap) {
-          adProbe.textContent = "-";
-          adTimeout.textContent = "-";
-          adAlpha.textContent = "-";
-          adFanout.textContent = adaptive.target_fanout ?? "-";
-          adRank.textContent = "No telemetry — node may be offline";
-          adSource.textContent = selectedAdaptiveSource;
-          adPeerStats.innerHTML = `<span class="adaptive-peer-bad">No telemetry — node may be offline</span>`;
-        } else {
-          adProbe.textContent = selectedSnap.probe_interval_s ?? "-";
-          adTimeout.textContent = selectedSnap.probe_timeout_s ?? "-";
-          adAlpha.textContent = selectedSnap.ewma_alpha ?? "-";
-          adFanout.textContent = adaptive.target_fanout ?? "-";
-          adRank.textContent = (selectedSnap.ranked_peers || []).join(" > ") || "-";
-          adSource.textContent = selectedSnap.self_id || selectedAdaptiveSource;
-          const peerStats = (selectedSnap.peers || []).map(p => {
-            const rtt = Number(p.ewma_rtt_ms || 0).toFixed(1);
-            const ok = Math.round(Number(p.ok_rate || 0) * 100);
-            const cls = adaptivePeerClass(p);
-            return `<span class="${cls}">${p.peer_id}:${rtt}ms/${ok}%</span>`;
-          });
-          adPeerStats.innerHTML = peerStats.join(" | ") || "-";
-        }
-      } else {
-        adaptivePanel.classList.remove("show");
-      }
-      if (prevRecon >= 0 && reconstructed > prevRecon) {
-        pushEvent("ok", `Reconstructed nodes: ${reconstructed}/${expectedTarget}`);
-      }
-      prevRecon = reconstructed;
-      if (data.phase === "done") {
-        if (completionReason === "target_reached") {
-          stagePill.textContent = `Completed: ${reconstructed}/${expectedTarget} expected nodes reconstructed`;
-        } else if (completionReason === "timeout") {
-          stagePill.textContent = `Partial: ${reconstructed}/${expectedTarget} reconstructed — timeout reached`;
-        }
-        const r = data.result || {};
-        kScenario.textContent = data.scenario || "-";
-        kTime.textContent = r.distribution_time_s || "-";
-        kCost.textContent = r.distribution_cost_units || "-";
-        kC2E.textContent = r.cloud_to_edge_bytes || "-";
-        kE2E.textContent = r.edge_to_edge_bytes || "-";
-        logsEl.textContent = data.cloud_log_tail || "(empty)";
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
-      if (data.phase === "error") {
-        logsEl.textContent = data.error || "Run failed";
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
+    if (data.phase === 'error') {
+      document.getElementById('logs').textContent = data.error || 'Run failed';
+      document.getElementById('btn-run').disabled = false;
+      clearInterval(pollTimer); pollTimer = null;
     }
+  } catch(e) {
+    setStatus('Poll error: ' + e.message, 'error');
+  }
+}
+async function runDemo() {
+  const method = document.getElementById('method').value;
+  const fault = document.getElementById('fault').value;
+  const faultModeEl = document.querySelector("input[name='fault_mode']:checked");
+  const fault_mode = faultModeEl ? faultModeEl.value : 'random';
+  const file_size_mib = Number(document.getElementById('size').value || 24);
+  kTarget = method === 'edgehydra' ? 3 : 4;
+  resetUI();
+  document.getElementById('btn-run').disabled = true;
+  setStatus('Starting...', 'running');
+  document.getElementById('logs').textContent = 'Running…';
 
-    async function runDemo() {
-      const method = document.getElementById("method").value;
-      const fault = document.getElementById("fault").value;
-      const faultModeEl = document.querySelector("input[name='fault_mode']:checked");
-      const fault_mode = faultModeEl ? faultModeEl.value : "random";
-      const faultModeLabel = fault_mode === "paper" ? "Paper fixed" : "Random visual";
-      const file_size_mib = Number(document.getElementById("size").value || 24);
-      kTarget = method === "edgehydra" ? 3 : 4;
-      resetNodeProgress();
-      setStatus(`Starting demo: ${method}, ${fault}, ${fault_mode}, ${file_size_mib} MiB...`);
-      logsEl.textContent = "Running...";
-      chipMode.textContent = `mode: ${method}`;
-      chipMode.className = "chip ok";
-      chipFault.textContent = `fault: ${fault}`;
-      chipFault.className = fault === "failed" ? "chip fail" : (fault === "slow" ? "chip warn" : "chip ok");
-      if (method === "edgehydra") {
-        adaptivePanel.classList.add("show");
-      } else {
-        adaptivePanel.classList.remove("show");
-      }
-      pushEvent("warn", `Demo started: ${method}, ${fault}, ${faultModeLabel}, ${file_size_mib} MiB`);
-      const res = await fetch("/api/demo/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method, fault_profile: fault, fault_mode, file_size_mib })
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        setStatus(`Start failed`);
-        logsEl.textContent = data.detail || data.output || "No logs";
-        return;
-      }
-      const plan = data.fault_plan || {};
-      const activeMode = (data.fault_mode || plan.fault_mode || fault_mode);
-      const activeModeLabel = activeMode === "paper" ? "Paper fixed" : "Random visual";
-      if (fault === "failed") {
-        const failedEdges = (plan.failed_edges || []).join(", ") || "one random edge";
-        faultBanner.className = "fault-banner fail show";
-        faultBanner.textContent = `FAILED (${activeModeLabel}): ${failedEdges} will crash early.`;
-        pushEvent("fail", `Fault injected: ${failedEdges} crash profile armed`);
-      } else if (fault === "slow") {
-        const slowEdges = (plan.slow_edges || []).join(", ") || "random edges";
-        faultBanner.className = "fault-banner warn show";
-        faultBanner.textContent = `SLOW (${activeModeLabel}): delay/drop active on ${slowEdges}.`;
-        pushEvent("warn", `Fault injected: slow profile on ${slowEdges}`);
-      } else {
-        faultBanner.className = "fault-banner warn show";
-        faultBanner.textContent = `NORMAL (${activeModeLabel}): no injected faults.`;
-      }
-      currentJobId = data.job_id;
-      if (pollTimer) clearInterval(pollTimer);
-      await pollStatusOnce();
-      pollTimer = setInterval(pollStatusOnce, 2000);
-    }
+  const chipMode = document.getElementById('chip-mode');
+  const chipFault = document.getElementById('chip-fault');
+  chipMode.className = 'chip chip-blue';
+  chipMode.textContent = `mode: ${method}`;
+  chipFault.className = fault === 'failed' ? 'chip chip-red' : (fault === 'slow' ? 'chip chip-yellow' : 'chip chip-green');
+  chipFault.textContent = `fault: ${fault}`;
 
-    adSourceSelect.addEventListener("change", () => {
-      selectedAdaptiveSource = adSourceSelect.value || "e0";
-      if (currentJobId) {
-        pollStatusOnce();
-      }
+  pushEvent('warn', `Demo started: ${method}, ${fault}, ${fault_mode}, ${file_size_mib} MiB`);
+
+  try {
+    const res = await fetch('/api/demo/run', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({method, fault_profile:fault, fault_mode, file_size_mib})
     });
+    const data = await res.json();
+    if (!data.ok) {
+      setStatus('Start failed: ' + (data.detail || ''), 'error');
+      document.getElementById('logs').textContent = data.detail || data.output || 'Error';
+      document.getElementById('btn-run').disabled = false;
+      return;
+    }
+    const plan = data.fault_plan || {};
+    const faultBanner = document.getElementById('fault-banner');
+    if (fault === 'failed') {
+      const fe = (plan.failed_edges || []).join(', ') || 'random edge';
+      faultBanner.className = 'fault-banner fail show';
+      faultBanner.textContent = `⚡ FAILED (${data.fault_mode}): ${fe} will crash early`;
+      pushEvent('fail', `Fault armed: ${fe} crash profile`);
+    } else if (fault === 'slow') {
+      const se = (plan.slow_edges || []).join(', ') || 'random edges';
+      faultBanner.className = 'fault-banner warn show';
+      faultBanner.textContent = `⚡ SLOW (${data.fault_mode}): delay/drop on ${se}`;
+      pushEvent('warn', `Fault armed: slow profile on ${se}`);
+    } else {
+      faultBanner.className = 'fault-banner info show';
+      faultBanner.textContent = `✓ NORMAL: no injected faults`;
+    }
+    currentJobId = data.job_id;
+    if (pollTimer) clearInterval(pollTimer);
+    await pollStatusOnce();
+    pollTimer = setInterval(pollStatusOnce, 2000);
+  } catch(e) {
+    setStatus('Error: ' + e.message, 'error');
+    document.getElementById('btn-run').disabled = false;
+  }
+}
+adSourceSelect.addEventListener('change', () => {
+  selectedAdaptiveSource = adSourceSelect.value || 'e0';
+  if (currentJobId) pollStatusOnce();
+});
 
-    document.getElementById("btn-run").onclick = runDemo;
-  </script>
+// ═══════════════════════════════════════════════════════════
+//  Metrics page — Chart.js
+// ═══════════════════════════════════════════════════════════
+let charts = {};
+const CHART_DEFAULTS = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a2236', titleColor:'#e2e8f0', bodyColor:'#94a3b8', borderColor:'#1e2d4a', borderWidth:1 } },
+  scales: {
+    x: { ticks: { color: '#64748b', font:{family:'Inter',size:11} }, grid: { color: 'rgba(30,45,74,0.5)' } },
+    y: { ticks: { color: '#64748b', font:{family:'Inter',size:11} }, grid: { color: 'rgba(30,45,74,0.5)' }, beginAtZero: true }
+  }
+};
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+function buildBarChart(id, labels, hydraData, disData, yLabel) {
+  destroyChart(id);
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'EdgeHydra', data: hydraData, backgroundColor:'rgba(59,130,246,0.7)', borderColor:'#3b82f6', borderWidth:1.5, borderRadius:4 },
+        { label:'EdgeDis', data: disData, backgroundColor:'rgba(249,115,22,0.7)', borderColor:'#f97316', borderWidth:1.5, borderRadius:4 }
+      ]
+    },
+    options: { ...CHART_DEFAULTS, plugins: { ...CHART_DEFAULTS.plugins, tooltip: { ...CHART_DEFAULTS.plugins.tooltip, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(4)} ${yLabel}` } } } }
+  });
+}
+function buildLineChart(id, labels, hydraData, disData, yLabel) {
+  destroyChart(id);
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'EdgeHydra', data: hydraData, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.15)', pointBackgroundColor:'#3b82f6', pointRadius:5, tension:0.3, fill:true },
+        { label:'EdgeDis', data: disData, borderColor:'#f97316', backgroundColor:'rgba(249,115,22,0.15)', pointBackgroundColor:'#f97316', pointRadius:5, tension:0.3, fill:true }
+      ]
+    },
+    options: { ...CHART_DEFAULTS, plugins: { ...CHART_DEFAULTS.plugins, tooltip: { ...CHART_DEFAULTS.plugins.tooltip, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(4)} ${yLabel}` } } } }
+  });
+}
+
+async function loadMetrics() {
+  document.getElementById('metrics-loading').style.display = 'block';
+  document.getElementById('metrics-content').style.display = 'none';
+  try {
+    const res = await fetch('/api/metrics/chart-data');
+    if (!res.ok) throw new Error('No metrics data. Run experiments first.');
+    const d = await res.json();
+
+    // Chart 1: Time by scenario
+    buildBarChart('chart-time-scenario',
+      d.scenario_labels, d.hydra_time, d.dis_time, 's');
+    // Chart 2: Cost by scenario
+    buildBarChart('chart-cost-scenario',
+      d.scenario_labels, d.hydra_cost, d.dis_cost, 'units');
+    // Chart 3: Time vs size
+    buildLineChart('chart-time-size',
+      d.size_labels, d.hydra_size_time, d.dis_size_time, 's');
+    // Chart 4: Cost vs size
+    buildLineChart('chart-cost-size',
+      d.size_labels, d.hydra_size_cost, d.dis_size_cost, 'units');
+
+    // Summary table
+    const tbody = document.getElementById('summary-tbody');
+    tbody.innerHTML = (d.summary || []).map(row => {
+      const speedup = row.dis_time_mean > 0 ? (row.dis_time_mean / row.hydra_time_mean).toFixed(2) : '—';
+      const costDiff = (row.hydra_cost_mean - row.dis_cost_mean).toFixed(4);
+      const hydraFaster = row.hydra_time_mean < row.dis_time_mean;
+      const sizeMiB = row.file_bytes > 0 ? (row.file_bytes/1024/1024).toFixed(1) : '—';
+      return `<tr>
+        <td>${row.scenario}</td>
+        <td>${sizeMiB}</td>
+        <td class="${hydraFaster?'better':''}">${fmtNum(row.hydra_time_mean)}</td>
+        <td>±${fmtNum(row.hydra_time_std,4)}</td>
+        <td class="${!hydraFaster?'better':''}">${fmtNum(row.dis_time_mean)}</td>
+        <td>±${fmtNum(row.dis_time_std,4)}</td>
+        <td class="${hydraFaster?'better':'worse'}">${speedup}×</td>
+        <td>${fmtNum(row.hydra_cost_mean,4)}</td>
+        <td>${fmtNum(row.dis_cost_mean,4)}</td>
+        <td class="${parseFloat(costDiff)<0?'better':'worse'}">${costDiff}</td>
+      </tr>`;
+    }).join('');
+
+    // Raw table
+    const rawTbody = document.getElementById('raw-tbody');
+    rawTbody.innerHTML = (d.raw || []).map(row => {
+      const mib = (parseFloat(row.file_bytes||0)/1024/1024).toFixed(1);
+      const c2e = (parseFloat(row.cloud_to_edge_bytes||0)/1024/1024).toFixed(2);
+      const e2e = (parseFloat(row.edge_to_edge_bytes||0)/1024/1024).toFixed(2);
+      return `<tr>
+        <td>${row.scenario}</td>
+        <td><span class="chip ${row.method==='edgehydra'?'chip-blue':'chip-yellow'}" style="font-size:10px;">${row.method}</span></td>
+        <td>${mib}</td>
+        <td>${fmtNum(row.distribution_time_s)}</td>
+        <td>${c2e}</td>
+        <td>${e2e}</td>
+        <td>${fmtNum(row.distribution_cost_units,4)}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('metrics-loading').style.display = 'none';
+    document.getElementById('metrics-content').style.display = 'block';
+  } catch(e) {
+    document.getElementById('metrics-loading').textContent = '⚠ ' + e.message;
+  }
+}
+</script>
 </body>
 </html>
-

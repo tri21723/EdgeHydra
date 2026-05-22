@@ -209,7 +209,51 @@ class EdgeDisNode:
 
         out_dir = Path("experiments/data/recovered_edgedis") / self.server_id
         out_dir.mkdir(parents=True, exist_ok=True)
-        (out_dir / filename).write_bytes(data)
+        out_path = out_dir / filename
+        out_path.write_bytes(data)
+
+        if filename.endswith(".wal.json"):
+            import sqlite3
+            import json
+            try:
+                db_path = out_dir / f"replica_{self.server_id}.db"
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute('''CREATE TABLE IF NOT EXISTS sensor_logs (
+                                    id INTEGER PRIMARY KEY,
+                                    temp REAL,
+                                    humidity REAL,
+                                    location TEXT
+                                )''')
+                
+                wal_data = json.loads(data)
+                batch = []
+                for tx in wal_data:
+                    if tx.get("action") == "INSERT" and tx.get("table") == "sensor_logs":
+                        d = tx.get("data", {})
+                        batch.append((d.get("id"), d.get("temp"), d.get("humidity"), d.get("location")))
+                
+                cursor.executemany("INSERT OR REPLACE INTO sensor_logs (id, temp, humidity, location) VALUES (?, ?, ?, ?)", batch)
+                conn.commit()
+                
+                cursor.execute("SELECT id, temp, humidity, location FROM sensor_logs ORDER BY id DESC LIMIT 3")
+                latest = [{"id": r[0], "temp": r[1], "humidity": r[2], "location": r[3]} for r in cursor.fetchall()]
+                cursor.execute("SELECT COUNT(*) FROM sensor_logs")
+                count = cursor.fetchone()[0]
+                conn.close()
+                
+                db_state = {"total_rows": count, "latest_records": latest}
+                sink = os.environ.get("METRICS_SINK", "")
+                if sink:
+                    metrics_dir = Path(sink).parent
+                else:
+                    metrics_dir = Path("/metrics") / "edgedis" / "unknown"
+                metrics_dir.mkdir(parents=True, exist_ok=True)
+                db_state_path = metrics_dir / f"node_db_state_{self.server_id}.json"
+                db_state_path.write_text(json.dumps(db_state))
+                print(f"[{self.server_id}] Applied WAL successfully: {count} rows. State written to {db_state_path.name}")
+            except Exception as e:
+                print(f"[{self.server_id}] Failed to apply WAL: {e}")
 
         st["reconstructed"] = True
         self._save_state(file_id)

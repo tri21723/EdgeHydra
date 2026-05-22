@@ -18,6 +18,8 @@ from fastapi.staticfiles import StaticFiles
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS_CSV = ROOT / "results" / "compose" / "metrics_all.csv"
+RESULTS_REPEATED_CSV = ROOT / "results" / "compose" / "metrics_all_repeated.csv"
+RESULTS_SUMMARY_CSV = ROOT / "results" / "compose" / "metrics_summary.csv"
 INPUTS_DIR = Path("/tmp/edgehydra_inputs")
 DEMO_CSV = ROOT / "results" / "compose" / "demo_last.csv"
 
@@ -261,7 +263,7 @@ async def _live_status(job: Dict[str, Any]) -> Dict[str, Any]:
         recovered_dir = svc["recover_root"] / node_id
         reconstructed = False
         if recovered_dir.exists():
-            for fp in recovered_dir.glob("*.bin"):
+            for fp in recovered_dir.glob("*.*"):
                 try:
                     # Consider only files produced in this demo run.
                     if fp.stat().st_mtime >= started_at - 0.5:
@@ -279,6 +281,8 @@ async def _live_status(job: Dict[str, Any]) -> Dict[str, Any]:
         elif enabled and (delay_max_ms > 0 or drop_prob > 0):
             fault_state = "slow_injected"
         received_block_ids = state_snap.get("received_block_ids", state_snap.get("received_blocks", []))
+        db_state_file = metrics_dir / f"node_db_state_{node_id}.json"
+        db_state = _read_json(db_state_file) or {}
         nodes.append(
             {
                 "id": node_id,
@@ -293,6 +297,7 @@ async def _live_status(job: Dict[str, Any]) -> Dict[str, Any]:
                 "crashed": bool(state_snap.get("crashed", False)),
                 "node_state_available": has_state,
                 "fault_state": fault_state,
+                "db_state": db_state,
             }
         )
 
@@ -376,15 +381,14 @@ async def _run_demo_job(job_id: str, req: DemoRunRequest) -> None:
     job["phase"] = "prepare"
     try:
         INPUTS_DIR.mkdir(parents=True, exist_ok=True)
-        file_name = f"demo_{req.file_size_mib}MiB.bin"
+        file_name = f"demo_{req.file_size_mib}MiB.wal.json"
         input_path = INPUTS_DIR / file_name
         if not input_path.exists():
             gen = await _run_cmd(
                 [
                     sys.executable,
                     "-m",
-                    "common.fake_video",
-                    "one",
+                    "common.wal_generator",
                     "--out",
                     str(input_path),
                     "--size-mib",
@@ -646,4 +650,130 @@ async def validate_metrics() -> Dict[str, Any]:
     out, _ = await proc.communicate()
     text = out.decode("utf-8", errors="replace")
     return {"ok": proc.returncode == 0, "returncode": proc.returncode, "output": text}
+
+
+@app.get("/api/metrics/summary")
+async def get_metrics_summary() -> Dict[str, Any]:
+    """
+    Returns the content of metrics_summary.csv and metrics_all_repeated.csv as JSON.
+    Used by the Metrics tab to render summary statistics.
+    """
+    summary_rows = _read_metrics_csv(RESULTS_SUMMARY_CSV)
+    repeated_rows = _read_metrics_csv(RESULTS_REPEATED_CSV)
+    return {
+        "ok": True,
+        "summary": summary_rows,
+        "repeated": repeated_rows,
+        "summary_path": str(RESULTS_SUMMARY_CSV),
+        "repeated_path": str(RESULTS_REPEATED_CSV),
+    }
+
+
+@app.get("/api/metrics/chart-data")
+async def get_chart_data() -> Dict[str, Any]:
+    """
+    Transforms metrics_summary.csv into Chart.js-ready datasets.
+    Returns:
+      - scenario bar chart data (normal/slow/failed, 1MiB file)
+      - size line chart data (variable_file_sizes scenario)
+      - summary table rows
+      - raw repeated rows
+    """
+    summary_rows = _read_metrics_csv(RESULTS_SUMMARY_CSV)
+    repeated_rows = _read_metrics_csv(RESULTS_REPEATED_CSV)
+
+    if not summary_rows:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="metrics_summary.csv not found or empty. Run experiments first.")
+
+    # Build lookup: (method, scenario, file_bytes) -> row
+    lookup: Dict[str, Any] = {}
+    for row in summary_rows:
+        key = (str(row.get("method","")), str(row.get("scenario","")), str(row.get("file_bytes","0")))
+        lookup[key] = row
+
+    def _f(v: Any, default: float = 0.0) -> float:
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return default
+
+    # ── Scenario bar charts (fixed file size ~1MiB = 1048576 bytes) ──────────
+    SCENARIO_SCENARIOS = [("normal", "Normal"), ("slow_servers", "Slow Servers"), ("failed_servers", "Failed Servers")]
+    SMALL_FILE = "1048576"
+    scenario_labels = [label for _, label in SCENARIO_SCENARIOS]
+    hydra_time, dis_time, hydra_cost, dis_cost = [], [], [], []
+
+    for sc_key, _ in SCENARIO_SCENARIOS:
+        eh = lookup.get(("edgehydra", sc_key, SMALL_FILE), {})
+        ed = lookup.get(("edgedis", sc_key, SMALL_FILE), {})
+        hydra_time.append(_f(eh.get("mean_time_s")))
+        dis_time.append(_f(ed.get("mean_time_s")))
+        hydra_cost.append(_f(eh.get("mean_cost")))
+        dis_cost.append(_f(ed.get("mean_cost")))
+
+    # ── Variable file sizes line charts ───────────────────────────────────────
+    # Get all unique file sizes from variable_file_sizes scenario, sorted
+    size_rows_eh = [
+        r for r in summary_rows
+        if r.get("scenario") == "variable_file_sizes" and r.get("method") == "edgehydra"
+    ]
+    size_rows_ed = [
+        r for r in summary_rows
+        if r.get("scenario") == "variable_file_sizes" and r.get("method") == "edgedis"
+    ]
+    size_rows_eh.sort(key=lambda r: _f(r.get("file_bytes", 0)))
+    size_rows_ed.sort(key=lambda r: _f(r.get("file_bytes", 0)))
+
+    def _mib_label(r: Dict[str, Any]) -> str:
+        b = _f(r.get("file_bytes", 0))
+        return f"{b/1024/1024:.0f} MiB" if b > 0 else "?"
+
+    size_labels = [_mib_label(r) for r in size_rows_eh]
+    hydra_size_time = [_f(r.get("mean_time_s")) for r in size_rows_eh]
+    dis_size_time = [_f(r.get("mean_time_s")) for r in size_rows_ed]
+    hydra_size_cost = [_f(r.get("mean_cost")) for r in size_rows_eh]
+    dis_size_cost = [_f(r.get("mean_cost")) for r in size_rows_ed]
+
+    # ── Summary table rows (paired per scenario+file_bytes) ───────────────────
+    # Pair edgehydra and edgedis rows
+    all_keys = set((r.get("scenario",""), r.get("file_bytes","0")) for r in summary_rows)
+    summary_table: List[Dict[str, Any]] = []
+    for sc, fb in sorted(all_keys, key=lambda x: (x[0], float(x[1] or 0))):
+        eh = lookup.get(("edgehydra", sc, str(fb)), {})
+        ed = lookup.get(("edgedis", sc, str(fb)), {})
+        if not eh and not ed:
+            continue
+        summary_table.append({
+            "scenario": sc,
+            "file_bytes": int(float(fb or 0)),
+            "hydra_time_mean": _f(eh.get("mean_time_s")),
+            "hydra_time_std": _f(eh.get("std_time_s")),
+            "dis_time_mean": _f(ed.get("mean_time_s")),
+            "dis_time_std": _f(ed.get("std_time_s")),
+            "hydra_cost_mean": _f(eh.get("mean_cost")),
+            "hydra_cost_std": _f(eh.get("std_cost")),
+            "dis_cost_mean": _f(ed.get("mean_cost")),
+            "dis_cost_std": _f(ed.get("std_cost")),
+            "n_runs": int(_f(eh.get("n_runs") or ed.get("n_runs", 0))),
+        })
+
+    return {
+        "ok": True,
+        # Scenario bar charts
+        "scenario_labels": scenario_labels,
+        "hydra_time": hydra_time,
+        "dis_time": dis_time,
+        "hydra_cost": hydra_cost,
+        "dis_cost": dis_cost,
+        # Size line charts
+        "size_labels": size_labels,
+        "hydra_size_time": hydra_size_time,
+        "dis_size_time": dis_size_time,
+        "hydra_size_cost": hydra_size_cost,
+        "dis_size_cost": dis_size_cost,
+        # Table data
+        "summary": summary_table,
+        "raw": repeated_rows,
+    }
 
