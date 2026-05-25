@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EdgeHydra — Distributed Edge Simulation</title>
   <meta name="description" content="EdgeHydra live demo dashboard: fault-tolerant edge data distribution using erasure coding. Compare EdgeHydra vs EdgeDis across 4 scenarios." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
   <style>
     :root {
       --bg: #0a0e1a;
@@ -40,7 +37,7 @@
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
@@ -258,7 +255,7 @@
     .node-status { font-size: 11px; }
     .node-blocks {
       margin-top: 5px;
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
       font-size: 10px; color: var(--text3);
       display: flex; flex-wrap: wrap; gap: 3px;
     }
@@ -282,7 +279,7 @@
     .ap-item span { color: var(--text); font-weight: 500; }
     .peer-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
     .peer-table th { text-align: left; color: var(--text3); padding: 3px 6px; border-bottom: 1px solid var(--border); }
-    .peer-table td { padding: 4px 6px; color: var(--text2); font-family: 'JetBrains Mono', monospace; }
+    .peer-table td { padding: 4px 6px; color: var(--text2); font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace; }
     .peer-good { color: var(--green) !important; }
     .peer-warn { color: var(--yellow) !important; }
     .peer-bad { color: var(--red) !important; }
@@ -292,14 +289,14 @@
     .db-title { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
     .db-table { width: 100%; border-collapse: collapse; font-size: 10px; }
     .db-table th { text-align: left; color: var(--text3); padding: 2px 4px; border-bottom: 1px solid var(--border); }
-    .db-table td { padding: 3px 4px; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+    .db-table td { padding: 3px 4px; color: var(--text); font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace; }
     .db-table td.temp { color: var(--green); font-weight: 600; }
     .db-count { font-size: 10px; color: var(--text3); text-align: right; margin-top: 4px; }
     /* ── Events ───────────────────────────────────────────*/
     .events-list { max-height: 200px; overflow-y: auto; }
     .event-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(30,45,74,0.5); font-size: 12px; }
     .event-item:last-child { border-bottom: none; }
-    .event-ts { color: var(--text3); font-family: 'JetBrains Mono', monospace; font-size: 10px; white-space: nowrap; padding-top: 1px; }
+    .event-ts { color: var(--text3); font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace; font-size: 10px; white-space: nowrap; padding-top: 1px; }
     .ev-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; white-space: nowrap; }
     .ev-ok { background: var(--green-glow); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
     .ev-fail { background: var(--red-glow); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
@@ -315,7 +312,7 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       padding: 12px 14px;
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
       font-size: 11px; color: var(--text3);
       white-space: pre-wrap; max-height: 280px; overflow-y: auto;
       line-height: 1.7;
@@ -341,7 +338,7 @@
     .chart-wrap { position: relative; height: 280px; }
     .summary-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
     .summary-table th { background: var(--bg3); padding: 8px 10px; text-align: left; color: var(--text3); font-weight: 500; font-size: 11px; border-bottom: 1px solid var(--border); }
-    .summary-table td { padding: 8px 10px; border-bottom: 1px solid rgba(30,45,74,0.5); color: var(--text2); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+    .summary-table td { padding: 8px 10px; border-bottom: 1px solid rgba(30,45,74,0.5); color: var(--text2); font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace; font-size: 11px; }
     .summary-table tr:last-child td { border-bottom: none; }
     .summary-table .better { color: var(--green); font-weight: 600; }
     .summary-table .worse { color: var(--red); }
@@ -1094,8 +1091,24 @@ adSourceSelect.addEventListener('change', () => {
 });
 
 // ═══════════════════════════════════════════════════════════
-//  Metrics page — Chart.js
+//  Metrics page — lazy load Chart.js then render
 // ═══════════════════════════════════════════════════════════
+let _chartJsLoaded = false;
+let _chartJsLoading = false;
+
+function _loadChartJs(callback) {
+  if (_chartJsLoaded) { callback(); return; }
+  if (_chartJsLoading) { setTimeout(() => _loadChartJs(callback), 100); return; }
+  _chartJsLoading = true;
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+  s.onload = () => { _chartJsLoaded = true; _chartJsLoading = false; callback(); };
+  s.onerror = () => {
+    _chartJsLoading = false;
+    document.getElementById('metrics-loading').textContent = '⚠ Failed to load Chart.js. Check internet connection.';
+  };
+  document.head.appendChild(s);
+}
 let charts = {};
 const CHART_DEFAULTS = {
   responsive: true, maintainAspectRatio: false,
@@ -1141,11 +1154,13 @@ function buildLineChart(id, labels, hydraData, disData, yLabel) {
 
 async function loadMetrics() {
   document.getElementById('metrics-loading').style.display = 'block';
+  document.getElementById('metrics-loading').textContent = 'Loading metrics data…';
   document.getElementById('metrics-content').style.display = 'none';
-  try {
-    const res = await fetch('/api/metrics/chart-data');
-    if (!res.ok) throw new Error('No metrics data. Run experiments first.');
-    const d = await res.json();
+  _loadChartJs(async () => {
+    try {
+      const res = await fetch('/api/metrics/chart-data');
+      if (!res.ok) throw new Error('No metrics data. Run experiments first.');
+      const d = await res.json();
 
     // Chart 1: Time by scenario
     buildBarChart('chart-time-scenario',
@@ -1198,11 +1213,12 @@ async function loadMetrics() {
       </tr>`;
     }).join('');
 
-    document.getElementById('metrics-loading').style.display = 'none';
-    document.getElementById('metrics-content').style.display = 'block';
-  } catch(e) {
-    document.getElementById('metrics-loading').textContent = '⚠ ' + e.message;
-  }
+      document.getElementById('metrics-loading').style.display = 'none';
+      document.getElementById('metrics-content').style.display = 'block';
+    } catch(e) {
+      document.getElementById('metrics-loading').textContent = '⚠ ' + e.message;
+    }
+  }); // end _loadChartJs callback
 }
 </script>
 </body>

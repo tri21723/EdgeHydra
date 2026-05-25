@@ -698,15 +698,15 @@ async def get_chart_data() -> Dict[str, Any]:
         except (TypeError, ValueError):
             return default
 
-    # ── Scenario bar charts (fixed file size ~1MiB = 1048576 bytes) ──────────
+    # ── Scenario bar charts (fixed file size ~24MiB = 25165824 bytes) ──────────
     SCENARIO_SCENARIOS = [("normal", "Normal"), ("slow_servers", "Slow Servers"), ("failed_servers", "Failed Servers")]
-    SMALL_FILE = "1048576"
+    TARGET_FILE_BYTES = "25165824"
     scenario_labels = [label for _, label in SCENARIO_SCENARIOS]
     hydra_time, dis_time, hydra_cost, dis_cost = [], [], [], []
 
     for sc_key, _ in SCENARIO_SCENARIOS:
-        eh = lookup.get(("edgehydra", sc_key, SMALL_FILE), {})
-        ed = lookup.get(("edgedis", sc_key, SMALL_FILE), {})
+        eh = lookup.get(("edgehydra", sc_key, TARGET_FILE_BYTES), {})
+        ed = lookup.get(("edgedis", sc_key, TARGET_FILE_BYTES), {})
         hydra_time.append(_f(eh.get("mean_time_s")))
         dis_time.append(_f(ed.get("mean_time_s")))
         hydra_cost.append(_f(eh.get("mean_cost")))

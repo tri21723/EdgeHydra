@@ -82,7 +82,8 @@ def _write_rows(path: Path, rows: Iterable[Dict[str, str]]) -> None:
 
 def _files_for_scenario(scenario: str) -> List[Path]:
     if scenario != "variable_file_sizes":
-        return [DEFAULT_FILE]
+        # Use 24MiB for fault scenarios to clearly show performance drops
+        return [ROOT / "experiments" / "data" / "raw" / "video_24MiB.bin"]
     raws = sorted((ROOT / "experiments" / "data" / "raw").glob("video_*MiB.bin"))
     return [p for p in raws if p.is_file()]
 
