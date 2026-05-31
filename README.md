@@ -236,16 +236,6 @@ Exact semantics are documented in the source code.
 
 ---
 
-## Documentation
-
-| File | Content |
-|------|---------|
-| `results/report/experiment_report.md` | *(Generated locally)* Full experiment narrative + tables |
-| `results/report/report_tables_only.md` | *(Generated locally)* Tables only for slides |
-
-Reports under `results/` are **ignored by git** unless you commit them intentionally.
-
----
 
 ## License & course use
 
