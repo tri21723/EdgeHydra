@@ -52,7 +52,6 @@ This repository implements a **research-style simulation** of edge file distribu
 ├── docker-compose.yml
 ├── Dockerfile
 ├── requirements.txt
-├── PROJECT_STATUS_AND_NEXT_STEPS.md   # Detailed handover / roadmap
 └── README.md
 ```
 
@@ -77,7 +76,7 @@ Clone the repo and **re-run experiments** to regenerate artifacts, or remove `re
 ## Installation
 
 ```bash
-git clone <your-fork-or-repo-url>.git
+git clone https://github.com/tri21723/EdgeHydra.git
 cd Project
 
 python3 -m venv .venv
@@ -233,7 +232,7 @@ Used by Compose / edges (see `common/fault_simulator.py`, `experiments/run_repea
 | `EDGE{i}_E2E_FAULT_DROP_PROB` | Drop probability |
 | `EDGE{i}_E2E_FAULT_CRASH_AFTER_S` | Crash after N seconds |
 
-Exact semantics are documented in source and `PROJECT_STATUS_AND_NEXT_STEPS.md`.
+Exact semantics are documented in the source code.
 
 ---
 
@@ -241,8 +240,6 @@ Exact semantics are documented in source and `PROJECT_STATUS_AND_NEXT_STEPS.md`.
 
 | File | Content |
 |------|---------|
-| `PROJECT_STATUS_AND_NEXT_STEPS.md` | Implementation vs paper, validated behaviour, backlog |
-| `PROJECT_REVIEW_ROADMAP_AND_IMPROVEMENTS.md` | Review notes / improvements |
 | `results/report/experiment_report.md` | *(Generated locally)* Full experiment narrative + tables |
 | `results/report/report_tables_only.md` | *(Generated locally)* Tables only for slides |
 
@@ -255,7 +252,7 @@ Reports under `results/` are **ignored by git** unless you commit them intention
 This project is maintained for **course / academic use** at the authors’ discretion. Add a `LICENSE` file if you open-source publicly.
 
 **Suggested citation (adapt to your instructor’s format):**  
-*EdgeHydra — IS211 Distributed Databases course project,* [GitHub repository URL].
+*EdgeHydra — IS211 Distributed Databases course project,* [https://github.com/tri21723/EdgeHydra.git](https://github.com/tri21723/EdgeHydra.git).
 
 ---
 
