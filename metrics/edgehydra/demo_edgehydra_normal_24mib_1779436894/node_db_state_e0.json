@@ -1,0 +1,1 @@
+{"total_rows": 500, "latest_records": [{"id": 500, "temp": 25.0, "humidity": 60.0, "location": "Zone A"}, {"id": 499, "temp": 29.53, "humidity": 77.9, "location": "Zone D"}, {"id": 498, "temp": 33.44, "humidity": 69.0, "location": "Zone C"}]}

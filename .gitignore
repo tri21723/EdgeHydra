@@ -3,8 +3,8 @@ __pycache__/
 *.pyc
 
 # Generated experiment artifacts
-metrics/
-results/
+# metrics/
+# results/
 experiments/data/cloud_work/
 experiments/data/cloud_work_edgedis/
 experiments/data/edge_cache/

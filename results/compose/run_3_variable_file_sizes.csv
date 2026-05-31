@@ -1,0 +1,15 @@
+scenario,method,n,k,m,file_path,file_bytes,distribution_time_s,cloud_to_edge_bytes,edge_to_edge_bytes,distribution_cost_units
+variable_file_sizes,edgehydra,4,3,4,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_120MiB.bin,125829120,0.878,167772160,335544320,195.55555555555554
+variable_file_sizes,edgedis,4,,,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_120MiB.bin,125829120,2.729,125829120,408944640,163.33333333333331
+variable_file_sizes,edgehydra,4,3,4,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_144MiB.bin,150994944,1.335,201326592,402653184,234.66666666666666
+variable_file_sizes,edgedis,4,,,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_144MiB.bin,150994944,3.852,150994944,490733568,196.0
+variable_file_sizes,edgehydra,4,3,4,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_1MiB.bin,1048576,0.123,1398104,2796208,1.6296327379014757
+variable_file_sizes,edgedis,4,,,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_1MiB.bin,1048576,1.393,1048576,3407872,1.3611111111111112
+variable_file_sizes,edgehydra,4,3,4,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_24MiB.bin,25165824,0.211,33554432,67108864,39.111111111111114
+variable_file_sizes,edgedis,4,,,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_24MiB.bin,25165824,2.276,25165824,106954752,35.33333333333333
+variable_file_sizes,edgehydra,4,3,4,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_48MiB.bin,50331648,0.286,67108864,134217728,78.22222222222223
+variable_file_sizes,edgedis,4,,,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_48MiB.bin,50331648,3.098,50331648,163577856,65.33333333333333
+variable_file_sizes,edgehydra,4,3,4,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_72MiB.bin,75497472,0.371,100663296,201326592,117.33333333333333
+variable_file_sizes,edgedis,4,,,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_72MiB.bin,75497472,2.473,75497472,245366784,98.0
+variable_file_sizes,edgehydra,4,3,4,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_96MiB.bin,100663296,0.517,134217728,268435456,156.44444444444446
+variable_file_sizes,edgedis,4,,,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_96MiB.bin,100663296,2.614,100663296,327155712,130.66666666666666

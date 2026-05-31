@@ -1,0 +1,20 @@
+{"event": "container_start", "event_kind": "infrastructure", "ts_ms": 1779438676717, "component": "e0"}
+{"event": "container_ready", "event_kind": "infrastructure", "ts_ms": 1779438676739, "component": "e0"}
+{"event": "block_received", "event_kind": "protocol", "ts_ms": 1779438677971, "file_id": "video_24MiB", "block_id": 0, "server_id": "e0", "source": "cloud"}
+{"direction": "edge_to_edge", "bytes": 6291456, "ts_ms": 1779438677983, "event": "payload_transfer", "event_kind": "protocol"}
+{"direction": "edge_to_edge", "bytes": 6291456, "ts_ms": 1779438677995, "event": "payload_transfer", "event_kind": "protocol"}
+{"direction": "edge_to_edge", "bytes": 6291456, "ts_ms": 1779438678036, "event": "payload_transfer", "event_kind": "protocol"}
+{"event": "block_received", "event_kind": "protocol", "ts_ms": 1779438678257, "file_id": "video_24MiB", "block_id": 1, "server_id": "e0", "source": "edge"}
+{"event": "block_received", "event_kind": "protocol", "ts_ms": 1779438678282, "file_id": "video_24MiB", "block_id": 3, "server_id": "e0", "source": "edge"}
+{"event": "block_received", "event_kind": "protocol", "ts_ms": 1779438678333, "file_id": "video_24MiB", "block_id": 2, "server_id": "e0", "source": "edge"}
+{"event": "reconstruction_done", "event_kind": "protocol", "ts_ms": 1779438679002, "file_id": "video_24MiB", "server_id": "e0"}
+{"direction": "edge_to_edge", "bytes": 6291456, "ts_ms": 1779438679625, "event": "payload_transfer", "event_kind": "protocol"}
+{"event": "supplement_sent", "event_kind": "protocol", "ts_ms": 1779438679636, "file_id": "video_24MiB", "block_id": 2, "from_server": "e0", "to_server": "e1"}
+{"direction": "edge_to_edge", "bytes": 6291456, "ts_ms": 1779438680018, "event": "payload_transfer", "event_kind": "protocol"}
+{"event": "supplement_sent", "event_kind": "protocol", "ts_ms": 1779438680043, "file_id": "video_24MiB", "block_id": 3, "from_server": "e0", "to_server": "e1"}
+{"direction": "edge_to_edge", "bytes": 6291456, "ts_ms": 1779438680711, "event": "payload_transfer", "event_kind": "protocol"}
+{"event": "supplement_sent", "event_kind": "protocol", "ts_ms": 1779438680736, "file_id": "video_24MiB", "block_id": 1, "from_server": "e0", "to_server": "e2"}
+{"direction": "edge_to_edge", "bytes": 6291456, "ts_ms": 1779438680795, "event": "payload_transfer", "event_kind": "protocol"}
+{"event": "supplement_sent", "event_kind": "protocol", "ts_ms": 1779438680812, "file_id": "video_24MiB", "block_id": 0, "from_server": "e0", "to_server": "e2"}
+{"direction": "edge_to_edge", "bytes": 6291456, "ts_ms": 1779438680849, "event": "payload_transfer", "event_kind": "protocol"}
+{"event": "supplement_sent", "event_kind": "protocol", "ts_ms": 1779438680865, "file_id": "video_24MiB", "block_id": 0, "from_server": "e0", "to_server": "e3"}

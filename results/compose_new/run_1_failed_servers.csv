@@ -1,0 +1,3 @@
+scenario,method,n,k,m,file_path,file_bytes,distribution_time_s,cloud_to_edge_bytes,edge_to_edge_bytes,distribution_cost_units
+failed_servers,edgehydra,4,3,1,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_24MiB.bin,25165824,0.162,33554432,50331648,37.333333333333336
+failed_servers,edgedis,4,,,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_24MiB.bin,25165824,2.507,25165824,125829120,37.33333333333333

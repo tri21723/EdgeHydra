@@ -1,0 +1,2 @@
+{"event": "container_start", "event_kind": "infrastructure", "ts_ms": 1779438725708, "component": "e1"}
+{"event": "container_ready", "event_kind": "infrastructure", "ts_ms": 1779438725726, "component": "e1"}

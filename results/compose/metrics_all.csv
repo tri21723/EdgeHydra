@@ -1,0 +1,1 @@
+scenario,method,n,k,m,file_path,file_bytes,distribution_time_s,cloud_to_edge_bytes,edge_to_edge_bytes,distribution_cost_units,time_ratio,cost_ratio,e2e_overhead_ratio,time_winner,cost_winner

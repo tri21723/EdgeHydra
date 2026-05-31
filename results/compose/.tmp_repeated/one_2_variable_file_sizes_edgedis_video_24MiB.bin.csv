@@ -1,0 +1,2 @@
+scenario,method,n,k,m,file_path,file_bytes,distribution_time_s,cloud_to_edge_bytes,edge_to_edge_bytes,distribution_cost_units
+variable_file_sizes,edgedis,4,,,/mnt/c/Users/Admin/OneDrive/Desktop/IS211_CSDLPT/Project/experiments/data/raw/video_24MiB.bin,25165824,2.931,25165824,88080384,33.33333333333333

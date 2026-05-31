@@ -1,0 +1,3 @@
+{"direction": "edge_to_edge", "bytes": 33554432, "ts_ms": 1777799888352, "event": "payload_transfer", "event_kind": "protocol"}
+{"direction": "edge_to_edge", "bytes": 33554432, "ts_ms": 1777799888364, "event": "payload_transfer", "event_kind": "protocol"}
+{"direction": "edge_to_edge", "bytes": 33554432, "ts_ms": 1777799898402, "event": "payload_transfer", "event_kind": "protocol"}

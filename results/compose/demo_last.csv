@@ -1,0 +1,2 @@
+scenario,method,n,k,m,file_path,file_bytes,distribution_time_s,cloud_to_edge_bytes,edge_to_edge_bytes,distribution_cost_units
+demo_edgehydra_normal_1mib_1779437290,edgehydra,4,3,4,/tmp/edgehydra_inputs/demo_1MiB.wal.json,1048575,0.119,1398100,2796200,1.6296280754937067
